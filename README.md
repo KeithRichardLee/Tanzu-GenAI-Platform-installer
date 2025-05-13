@@ -39,7 +39,7 @@ The installer takes minimum set of parameters, validates them, and then performs
 - This repo cloned eg `git clone https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer.git`
 
 
-## Fill out required data in the script
+## Fill out required fields in the script
 Update each instance of "FILL-ME-IN" in the script. See below for a worked example...
 
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, VMware Postgres tile, VMware Tanzu GenAI tile, and OM CLI
@@ -129,7 +129,7 @@ Network Name: tp-network
 Network Portgroup: tp-network-70
 Network CIDR: 10.0.70.0/24
 Network Gateway: 10.0.70.1
-Reserved IP Range: 10.0.70.0-10.0.70.10
+Reserved IP Range: 10.0.70.0-10.0.70.2,10.0.70.10
 DNS: 10.0.70.1
 NTP: 10.0.70.1
 
