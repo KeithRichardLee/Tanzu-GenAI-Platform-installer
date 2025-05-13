@@ -52,7 +52,7 @@ $GenAITile    = "/Users/Tanzu/Downloads/genai-10.0.3.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
-Update infra details
+Update infra config fields
 ```bash
 ### Infra config
 $VIServer          = "vcenter.tanzu.lab"
@@ -71,7 +71,7 @@ $VMDNS             = "10.0.70.1"
 $VMNTP             = "10.0.70.1"
 ```
 
-Update Tanzu Platform config
+Update Tanzu Platform config fields
 ```bash
 ### Tanzu Platform config
 $OpsManagerAdminPassword  = "my-super-safe-password!"   
