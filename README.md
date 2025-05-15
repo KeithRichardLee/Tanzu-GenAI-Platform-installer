@@ -237,39 +237,187 @@ Do you accept (Y or N): y
 [05-13-2025_01:55:28]
 [05-13-2025_01:55:28] Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bind services, and more
 [05-13-2025_01:55:28] - cf login -a https://api.sys.tp.tanzu.lab -u admin -p eFdVbZI7OxQ_VpBxEUBLy7cbKFY_f57q --skip-ssl-validation
-[05-13-2025_01:55:28] Note; you can download cf cli from https://apps.sys.tp.tanzu.lab/tools or https://github.com/cloudfoundry/cli/releases
+[05-13-2025_01:55:28]   Note; you can download cf cli from https://apps.sys.tp.tanzu.lab/tools or https://github.com/cloudfoundry/cli/releases
 ```
 
 
-## Next steps
+# Next steps: Deploy a sample app
+Below we will deploy a Spring chatbot application which can consume AI services by the platform
 
-### Deploy a sample app
+## Prerequisites
 - Retrieve UAA admin credentials
   - The script on completion will print out the admin credentials for Tanzu Apps Manager and CF CLI, alternatively, you can retrieve them via Tanzu Operations Manager > Small Footprint Tanzu Platform for Cloud Foundry > Credentials > UAA > Admin Credentials
-- Create an Org and a Space using either Tanzu Apps Manager or cf CLI for where we can deploy a sample app
-  - **Tanzu Apps Manager**
-    - The script on completion will print out the Tanzu Apps Manager URL and credentials, alternatively, see the docs [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/console-login.html) on how to access and use Apps Manager 
-  - **CF CLI**
-    -  The script on completion will print out how to download cf cli and how to run `cf login`, alternatively, see the [install docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/install-go-cli.html) and [login docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/getting-started.html)
-    - Create an Org eg
-      - `cf create-org tanzu-demos-org`
-    - Create a Space eg
-      - `cf create-space demos-space -o tanzu-demos-org`
-    - Target an Org and Space eg
-      - `cf target -o tanzu-demos-org -s demos-space`
-- Deploy a sample app
-  - Download spring-music
-    - `git clone https://github.com/cloudfoundry-samples/spring-music.git`
-  - Build jar file
-    - ```
-      cd spring-music
-      ./gradlew clean assemble
-      ```
-  - Run app
-    - `cf push`
-  - Verify app is running, retrieve route, and open app
-    - `cf apps` 
 
+- Download CF CLI
+  -  The above script on completion will print out how to download cf cli and how to run `cf login`, alternatively, see the [install docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/install-go-cli.html) and [login docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/getting-started.html)
+
+- Create an Org and a Space
+    - Create an Org
+    ```bash
+    cf create-org tanzu-demos-org
+    ```
+    - Create a Space
+    ```bash
+    cf create-space tanzu-demos-space -o tanzu-demos-org
+    ```
+    - Target an Org and Space
+    ```bash
+    cf target -o tanzu-demos-org -s tanzu-demos-space
+    ```
+
+- Download JDKs & SDKs
+  - Note; [sdkman](https://sdkman.io) is a great tool for installing and managing many versions of various JDKs and SDKs
+  - Java 21 or later
+    - Install Java 21 if not already installed
+    ```bash
+    sdk install java 21.0.7-oracle
+    ```
+    - If already installed, make Java 21 the current candiate version, or which ever candidate version you have installed
+    ```bash
+    sdk use java 21.0.7-oracle
+    ```
+  - Maven 3.8 or later
+    - Install Maven if not already installed
+    ```bash
+    sdk install maven
+    ```
+    - If you have Maven already installed, make Maven 3.8 or later the current candiate version, or which ever candidate version you have installed
+    ```bash
+    sdk use maven 3.9.9
+    ```
+- clone git repos
+  ```bash
+  git clone https://github.com/cpage-pivotal/cf-mcp-client
+  git clone https://github.com/kirtiapte/bitcoin-mcp-server
+  ```
+
+## Deploy chat app
+
+### Build the app
+```bash
+cd cf-mcp-client
+mvn clean package
+```
+
+### Push the app to the platform
+```bash
+cf push
+```
+
+### Access the app
+1. Retrieve the URL to the app
+```bash
+cf apps
+```
+
+2. Open the app in a browser and ask it a question!
+
+
+### Bind to a LLM model
+1. View services available
+```bash
+cf marketplace
+```
+
+2. View genai services available
+```bash
+cf marketplace -e genai
+```
+
+3. Create a service instance that provides chat LLM capabilities
+```bash
+cf create-service genai mistral-nemo chat-llm
+```
+
+4. Bind the service to the app
+```bash
+cf bind-service ai-tool-chat chat-llm
+```
+
+5. Restart the app to apply the binding
+```bash
+cf restart ai-tool-chat
+```
+
+Now the chatbot will use the LLM to respond to chat requests
+
+Ask it for the price of bitcoin
+
+
+### Bind to services so can do RAG
+1. View genai services available
+```bash
+cf marketplace -e genai
+```
+
+2. Create a service instance that provides embedding LLM capabilities
+```bash
+cf create-service genai nomic-embed-text embedding-llm
+```
+
+3. Create a Postgres service instance to use as a vector database
+
+```bash
+cf create-service postgres on-demand-postgres-db vector-db
+```
+
+4. Bind the services to the app
+
+```bash
+cf bind-service ai-tool-chat embedding-llm 
+cf bind-service ai-tool-chat vector-db
+```
+
+5. Restart the app to apply the binding
+
+```bash
+cf restart ai-tool-chat
+```
+
+6. Click on the document tool on the right-side of the screen, and upload a .PDF File
+
+Now your chatbot will respond to queries about the uploaded document
+
+### Deploy a MCP server
+Model Context Protocol (MCP) servers are lightweight programs that expose specific capabilities to AI models through a standardized interface. These servers act as bridges between LLMs and external tools, data sources, or services, allowing your AI application to perform actions like searching databases, accessing files, or calling external APIs without complex custom integrations.
+
+1. Build the app
+```bash
+cd ../bitcoin-mcp-server
+mvn clean package
+```
+
+2. Push the app to the platform
+```bash
+cf push
+```
+
+3. Retrieve the URL to the bitcoin app
+```bash
+cf apps
+```
+
+4. Create a user-provided service that provides the URL for the bitcoin MCP server
+```bash
+cf cups bitcoin-mcp-server -p '{"mcpServiceURL":"http://bitcoin-mcp-server.apps.tp.tanzu.lab"}'
+```
+
+5. Bind the MCP service to your chatbot app
+```bash
+cf bind-service ai-tool-chat bitcoin-mcp-server
+```
+
+6. Restart your chatbot app
+```bash
+cf restart ai-tool-chat
+```
+
+Your chatbot will now register with the MCP server, and the LLM will be able to invoke the agent's capabilities when responding to chat requests
+
+Ask it for the current price of bitcoin
+
+
+# Appendix
 
 ## Troubleshooting
 - An install log can be found where you run the script from with a file name of tanzu-genai-platform-installer.log. It contains verbose logging.
