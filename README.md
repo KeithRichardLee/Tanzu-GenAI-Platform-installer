@@ -419,5 +419,10 @@ Ask it for the current price of bitcoin
 
 # Appendix
 
+## Resources
+- [VMware Tanzu AI Solutions website](https://www.vmware.com/solutions/app-platform/ai)
+- [Tanzu Platform Marketplace Services](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-Platform/Tanzu-Platform-Marketplace-Services.md)
+- [How to install MinIO object storage server to host Ollama and vLLM models offline](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-AI-Solutions/how-to-install-minio-to-host-ollama-and-vllm-models-offline.md)
+
 ## Troubleshooting
 - An install log can be found where you run the script from with a file name of tanzu-genai-platform-installer.log. It contains verbose logging.
