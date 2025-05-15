@@ -497,7 +497,7 @@ if($preCheck -eq 1) {
     Run-Test -TestName "vCenter credentials" -TestCode {
         try {
             $Global:ProgressPreference = 'SilentlyContinue'
-            $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -WarningAction SilentlyContinue -ErrorAction Stop
+            $viConnection = Server $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
             if ($viConnection) {
                 $script:viConnectionObject = $viConnection # Store for later use
                 return $true
@@ -864,7 +864,7 @@ if($deployOpsManager -eq 1) {
     } 
     
     # Connect to vCenter Server
-    $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -WarningAction SilentlyContinue -ErrorAction Stop
+    $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
 
     $datastore = Get-Datastore -Server $viConnection -Name $VMDatastore | Select -First 1
     if($VirtualSwitchType -eq "VSS") {
@@ -902,7 +902,7 @@ if($deployOpsManager -eq 1) {
     $opsmgr_vm | Start-Vm -RunAsync | Out-Null
 
     #Disconnect from vCenter
-    Disconnect-VIServer -Confirm:$false -ErrorAction SilentlyContinue
+    DisServer -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 if($setupOpsManager -eq 1) {
