@@ -772,8 +772,6 @@ if($preCheck -eq 1) {
     }
 
     if ($opsmanResult) {
-        # Note; the following 4 tests take 30 seconds each to run if Ops Man is not up. Need to add timeout logic as not native in OM CLI
-
         # Test 25: Check if BOSH director is already installed
         Run-Test -TestName "BOSH Director is not installed" -TestCode {
             try {
@@ -866,22 +864,14 @@ if($deployOpsManager -eq 1) {
     # Connect to vCenter Server
     $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
 
-    $datastore = Get-Datastore -Server $viConnection -Name $VMDatastore | Select -First 1
-    if($VirtualSwitchType -eq "VSS") {
-        $network = Get-VirtualPortGroup -Server $viConnection -Name $VMNetwork | Select -First 1
-    } else {
-        $network = Get-VDPortgroup -Server $viConnection -Name $VMNetwork | Select -First 1
-    }
+    $datastore = Get-Datastore -Server $viConnection -Name $VMDatastore | Select-Object -First 1
     $cluster = Get-Cluster -Server $viConnection -Name $VMCluster
-    $datacenter = $cluster | Get-Datacenter
-    $vmhost = $cluster | Get-VMHost | Select -First 1
+    $vmhost = $cluster | Get-VMHost | Select-Object -First 1
     $resourcepool = Get-ResourcePool -Server $viConnection -Name $VMResourcePool
 
     # Generate ssh key
     $OpsManagerPublicSshKey = $null
     $result = Generate-SSHKey -PublicKeyContent ([ref]$OpsManagerPublicSshKey)
-
-    # Future work, change below to use "om vm-lifecycle create-vm"
 
     # Deploy Ops Manager
     $opsMgrOvfCOnfig = Get-OvfConfiguration $OpsManOVA
@@ -1041,8 +1031,6 @@ properties-configuration:
 }
 
 if($setupTPCF -eq 1) {
-    
-    #My-Logger "Installing Tanzu Platform for Cloud Foundry..."
     
     # Verify if TPCF is already installed
     $productToCheck = "cf"
@@ -1242,8 +1230,6 @@ network-properties:
 }
 
 if($setupGenAI -eq 1) {
-
-    #My-Logger "Installing Tanzu GenAI..."
 
     # Verify if GenAI is already installed
     $productToCheck = "genai"
