@@ -730,8 +730,24 @@ if($preCheck -eq 1) {
         }
     }
 
-    # Test 22: Verify if wildcard domain resolves to GoRouter IP
-    Run-Test -TestName "Wildcard apps and system domains resolve to GoRouter IP" -TestCode {
+    # Test 22: Verify if wildcard apps domain resolves to GoRouter IP
+    Run-Test -TestName "Wildcard apps domain resolves to GoRouter IP" -TestCode {
+        $nsLookupArgs = @("test.apps.$TPCFDomain", "$VMDNS") 
+        try {
+            $dnsResult = & nslookup $nsLookupArgs 2>&1
+            $ipaddress = ($dnsResult | Select-String -Pattern "Address:\s*(\d+\.\d+\.\d+\.\d+)" -AllMatches).Matches[1].Groups[1].Value
+            if ($ipaddress -eq $TPCFGoRouter) {
+                return $true
+            } else {
+                return "Wildcard apps domain $TPCFDomain resolves to $ipaddress instead of GoRouter IP $TPCFGoRouter"
+            }
+        } catch {
+            return "Error checking DNS resolution for test.apps.$TPCFDomain. Error: $($_.Exception.Message)"
+        }
+    }
+
+    # Test 23: Verify if wildcard system domain resolves to GoRouter IP
+    Run-Test -TestName "Wildcard system domain resolves to GoRouter IP" -TestCode {
         $nsLookupArgs = @("test.sys.$TPCFDomain", "$VMDNS") 
         try {
             $dnsResult = & nslookup $nsLookupArgs 2>&1
@@ -739,14 +755,14 @@ if($preCheck -eq 1) {
             if ($ipaddress -eq $TPCFGoRouter) {
                 return $true
             } else {
-                return "Wildcard domain $TPCFDomain resolves to $ipaddress instead of GoRouter IP $TPCFGoRouter"
+                return "Wildcard system domain $TPCFDomain resolves to $ipaddress instead of GoRouter IP $TPCFGoRouter"
             }
         } catch {
             return "Error checking DNS resolution for test.sys.$TPCFDomain. Error: $($_.Exception.Message)"
         }
     }
 
-    # Test 23: Verify connectivity to ollama.com
+    # Test 24: Verify connectivity to ollama.com
     Run-Test -TestName "ollama.com connectivity" -TestCode {
         try {
             $ollamaResult = Invoke-WebRequest -Uri https://ollama.com -Method GET
@@ -760,7 +776,7 @@ if($preCheck -eq 1) {
         }
     }
 
-    # Test 24: Check if Ops Man is already installed
+    # Test 25: Check if Ops Man is already installed
     $global:opsmanResult = $null
     Run-Test -TestName "Tanzu Operations Manager is not installed" -TestCode {
         try {
@@ -772,7 +788,7 @@ if($preCheck -eq 1) {
     }
 
     if ($opsmanResult) {
-        # Test 25: Check if BOSH director is already installed
+        # Test 26: Check if BOSH director is already installed
         Run-Test -TestName "BOSH Director is not installed" -TestCode {
             try {
                 $productToCheck = "p-bosh"
@@ -787,7 +803,7 @@ if($preCheck -eq 1) {
             }
         }
         
-        # Test 26: Check if Tanzu Platform Cloud Foundary is already installed
+        # Test 27: Check if Tanzu Platform Cloud Foundary is already installed
         Run-Test -TestName "Tanzu Platform Cloud Foundary is not installed" -TestCode {
             try {
                 $productToCheck = "cf"
@@ -802,7 +818,7 @@ if($preCheck -eq 1) {
             }
         }
         
-        # Test 27: Check if VMware Postgres is already installed
+        # Test 28: Check if VMware Postgres is already installed
         Run-Test -TestName "VMware Postgres is not installed" -TestCode {
             try {
                 $productToCheck = "postgres"
@@ -817,7 +833,7 @@ if($preCheck -eq 1) {
             }
         }
         
-        # Test 28: Check if Tanzu GenAI is already installed
+        # Test 29: Check if Tanzu GenAI is already installed
         Run-Test -TestName "Tanzu GenAI is not installed" -TestCode {
             try {
                 $productToCheck = "genai"
@@ -833,7 +849,7 @@ if($preCheck -eq 1) {
         }
     }
 
-    # Test 29: Check if ssh-keygen is installed
+    # Test 30: Check if ssh-keygen is installed
     Run-Test -TestName "ssh-keygen is installed" -TestCode {
         if (Get-Command ssh-keygen -ErrorAction Stop) {return $true} else {return "ssh-keygen not installed"}
     }
@@ -1424,4 +1440,5 @@ My-Logger "- Password: $uaaAdminPassword"
 My-Logger " "
 My-Logger "Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bind services, and more"
 My-Logger "- cf login -a https://api.sys.$TPCFDomain -u $OpsManagerAdminUsername -p $uaaAdminPassword --skip-ssl-validation"
-My-Logger "Note; you can download cf cli from https://apps.sys.$TPCFDomain/tools or https://github.com/cloudfoundry/cli/releases"
+My-Logger " "
+My-Logger "  Note; you can download cf cli from https://apps.sys.$TPCFDomain/tools or https://github.com/cloudfoundry/cli/releases"
