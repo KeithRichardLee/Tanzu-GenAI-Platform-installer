@@ -5,10 +5,12 @@ TL;DR - A powershell script that automates the install of VMware Tanzu Platform,
 The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, and GenAI service with models that have embedding, chat, and tools capabilities. Note, the script uses what is known as the Small Footprint Tanzu Platform for Cloud Foundry which is a repackaging of Tanzu Platform for Cloud Foundry into a smaller deployment with fewer VMs which is perfect for POC and sandbox work. Note, there are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/toc-tas-install-index.html#limits). For a much more comprehensive automated install of Tanzu Platform, which uses [Concourse](https://concourse-ci.org/), check out the [Platform Automation Toolkit for Tanzu](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/platform-automation-toolkit-for-tanzu/5-2/vmware-automation-toolkit/docs-index.html)
 
 ## Prerequisites
-**VMware ESXi host/cluster (ESXi v7.x or v8.x) with the following spare capacity...**
-  - Compute: ~40 vCPU, although only uses approx 5 GHz
-  - Memory: ~100 GB
-  - Storage: ~400 GB
+**VMware vSphere**
+  - ESXi host/cluster (ESXi v7.x or v8.x) with the following spare capacity...
+    - Compute: ~40 vCPU, although only uses approx 5 GHz
+    - Memory: ~100 GB
+    - Storage: ~400 GB
+  - User / service account with the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-0/tanzu-ops-manager/vsphere-vsphere-service-account.html)
 
 **Networking**
   - IP addresses
