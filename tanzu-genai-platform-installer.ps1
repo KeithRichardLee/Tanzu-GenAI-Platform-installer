@@ -878,6 +878,73 @@ function Test-NtpServer {
     }
 }
 
+function Test-DNSLookup {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$FQDN,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$DNSServer
+    )
+    
+    try {
+        # Execute nslookup command
+        $nslookupResult = nslookup -timeout=1 $FQDN $DNSServer 2>&1
+
+        # Convert result to string array for processing
+        $resultLines = $nslookupResult | Out-String -Stream
+        
+        # Initialize variables
+        $isValid = $false
+        $ipAddresses = @()
+        
+        # Parse the nslookup output
+        $foundName = $false
+        foreach ($line in $resultLines) {
+            # Check for successful resolution indicators
+            if ($line -match "Name:\s+(.+)" -or $line -match "^$FQDN") {
+                $isValid = $true
+                $foundName = $true
+            }
+            
+            # Extract IP addresses (IPv4 pattern) - only after finding the domain name
+            if ($foundName -and $line -match "Address:\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$") {
+                $ipAddresses += $matches[1]
+            }
+            
+            # Check for common error indicators
+            if ($line -match "can't find|NXDOMAIN|No response|server failed|timed-out|no servers") {
+                $isValid = $false
+                break
+            }
+        }
+        
+        # Create return object
+        $result = [PSCustomObject]@{
+            FQDN = $FQDN
+            DNSServer = $DNSServer
+            IsValid = $isValid
+            IPAddresses = $ipAddresses
+            PrimaryIP = if ($ipAddresses.Count -gt 0) { $ipAddresses[0] } else { $null }
+        }
+        
+        return $result
+    }
+    catch {
+        # Handle any errors during execution
+        $result = [PSCustomObject]@{
+            FQDN = $FQDN
+            DNSServer = $DNSServer
+            IsValid = $false
+            IPAddresses = @()
+            PrimaryIP = $null
+            Error = $_.Exception.Message
+        }
+        
+        return $result
+    }
+}
+
 function Run-Test {
     param(
         [Parameter(Mandatory=$true)]
@@ -1345,10 +1412,9 @@ if($preCheck -eq 1) {
     # Verify Ops Man DNS
     My-Logger "Validating Tanzu Operations Manager DNS entry $OpsManagerFQDN" -LogOnly
     Run-Test -TestName "Network: Tanzu Operations Manager DNS entry" -TestCode {
-        $nsLookupArgs = @("$OpsManagerFQDN", "$VMDNS")
         try {
-            $dnsResult = & nslookup $nsLookupArgs 2>&1
-            if ($dnsResult) {
+            $dnsResult = Test-DNSLookup -FQDN $OpsManagerFQDN -DNSServer $VMDNS
+            if ($dnsResult.IsValid -eq $true) {
                 return $true
             } else {
                 return "Network: DNS entry for $OpsManagerFQDN not found"
@@ -1358,14 +1424,12 @@ if($preCheck -eq 1) {
         }
     } 
 
-
     # Verify wildcard apps domain DNS
     My-Logger "Validating wildcard apps domain DNS entry *.apps.$TPCFDomain" -LogOnly
     Run-Test -TestName "Network: Wildcard apps domain DNS entry" -TestCode {
-        $nsLookupArgs = @("test.apps.$TPCFDomain", "$VMDNS")
         try {
-            $dnsResult = & nslookup $nsLookupArgs 2>&1
-            if ($dnsResult) {
+            $dnsResult = Test-DNSLookup -FQDN "test.apps.$TPCFDomain" -DNSServer $VMDNS
+            if ($dnsResult.IsValid -eq $true) {
                 return $true
             } else {
                 return "Network: No record found for apps wildcard domain *.apps.$TPCFDomain on DNS server $VMDNS"
@@ -1378,10 +1442,9 @@ if($preCheck -eq 1) {
     # Verify wildcard system domain
     My-Logger "Validating wildcard system domain DNS entry *.sys.$TPCFDomain" -LogOnly
     Run-Test -TestName "Network: Wildcard system domain DNS entry" -TestCode {
-        $nsLookupArgs = @("test.sys.$TPCFDomain", "$VMDNS")
         try {
-            $dnsResult = & nslookup $nsLookupArgs 2>&1
-            if ($dnsResult) {
+            $dnsResult = Test-DNSLookup -FQDN "test.sys.$TPCFDomain" -DNSServer $VMDNS
+            if ($dnsResult.IsValid -eq $true) {
                 return $true
             } else {
                 return "Network: No record found for system wildcard domain *.sys.$TPCFDomain on DNS server $VMDNS"
@@ -1394,14 +1457,12 @@ if($preCheck -eq 1) {
     # Verify if wildcard apps domain resolves to GoRouter IP
     My-Logger "Validating if wildcard apps domain *.apps.$TPCFDomain resolves to GoRouter IP $TPCFGoRouter" -LogOnly
     Run-Test -TestName "Network: Wildcard apps domain resolves to GoRouter IP" -TestCode {
-        $nsLookupArgs = @("test.apps.$TPCFDomain", "$VMDNS") 
         try {
-            $dnsResult = & nslookup $nsLookupArgs 2>&1
-            $ipaddress = ($dnsResult | Select-String -Pattern "Address:\s*(\d+\.\d+\.\d+\.\d+)" -AllMatches).Matches[1].Groups[1].Value
-            if ($ipaddress -eq $TPCFGoRouter) {
+            $dnsResult = Test-DNSLookup -FQDN "test.apps.$TPCFDomain" -DNSServer $VMDNS
+            if ($dnsResult.PrimaryIP -eq $TPCFGoRouter) {
                 return $true
             } else {
-                return "Network: Wildcard apps domain $TPCFDomain resolves to $ipaddress instead of GoRouter IP $TPCFGoRouter"
+                return "Network: Wildcard apps domain $TPCFDomain resolves to $($dnsResult.PrimaryIP) instead of GoRouter IP $TPCFGoRouter"
             }
         } catch {
             return "Error checking DNS resolution for test.apps.$TPCFDomain. Error: $($_.Exception.Message)"
@@ -1411,14 +1472,12 @@ if($preCheck -eq 1) {
     # Verify if wildcard system domain resolves to GoRouter IP
     My-Logger "Validating if wildcard system domain *.sys.$TPCFDomain resolves to GoRouter IP $TPCFGoRouter" -LogOnly
     Run-Test -TestName "Network: Wildcard system domain resolves to GoRouter IP" -TestCode {
-        $nsLookupArgs = @("test.sys.$TPCFDomain", "$VMDNS") 
         try {
-            $dnsResult = & nslookup $nsLookupArgs 2>&1
-            $ipaddress = ($dnsResult | Select-String -Pattern "Address:\s*(\d+\.\d+\.\d+\.\d+)" -AllMatches).Matches[1].Groups[1].Value
-            if ($ipaddress -eq $TPCFGoRouter) {
+            $dnsResult = Test-DNSLookup -FQDN "test.sys.$TPCFDomain" -DNSServer $VMDNS
+            if ($dnsResult.PrimaryIP -eq $TPCFGoRouter) {
                 return $true
             } else {
-                return "Network: Wildcard system domain $TPCFDomain resolves to $ipaddress instead of GoRouter IP $TPCFGoRouter"
+                return "Network: Wildcard system domain $TPCFDomain resolves to $($dnsResult.PrimaryIP) instead of GoRouter IP $TPCFGoRouter"
             }
         } catch {
             return "Error checking DNS resolution for test.sys.$TPCFDomain. Error: $($_.Exception.Message)"
