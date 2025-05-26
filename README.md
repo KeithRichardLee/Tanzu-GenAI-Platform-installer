@@ -14,7 +14,7 @@ The installer takes minimum set of parameters, validates them, and then performs
 
 **Networking**
   - IP addresses
-    - A subnet with approximately 15 free IP addresses including two static IP addresses
+    - A subnet with at least 12 free IP addresses including two static IP addresses
       - 1x Tanzu Operations Manger
       - 1x GoRouter 
     
@@ -79,9 +79,9 @@ Update Tanzu Platform config fields
 $OpsManagerAdminPassword  = "my-super-safe-password!"   
 $OpsManagerIPAddress      = "10.0.70.10"       
 $OpsManagerFQDN           = "opsman.tanzu.lab"            
-$BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
-$TPCFGoRouter             = "10.0.70.100"                     #IP which the Tanzu Platform system and apps domain resolves to
-$TPCFDomain               = "tp.tanzu.lab"                    #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
+$BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10,10.0.70.21-10.0.70.254"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
+$TPCFGoRouter             = "10.0.70.20"                                             #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
+$TPCFDomain               = "tp.tanzu.lab"                                           #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
 ```
 
 
@@ -281,3 +281,14 @@ Ask it for the current price of bitcoin
 
 ## Troubleshooting
 - An install log can be found where you run the script from with a file name of tanzu-genai-platform-installer.log. It contains verbose logging.
+
+## Validation
+Script validated against the following versions...
+- Tanzu Operations Manager: ops-manager-vsphere-3.0.40+LTS-T.ova
+- Tanzu Platform for Cloud Foundry small footprint: srt-10.0.5-build.2.pivotal
+- VMware Postgres: postgres-10.0.0-build.31.pivotal
+- Tanzu GenAI: genai-10.0.3.pivotal
+- OM CLI: 7.15.1
+- Powershell: 7.5.1
+- PowerCLI: 13.3.0
+- vCenter: 8U3
