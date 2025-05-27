@@ -1339,7 +1339,7 @@ if($preCheck -eq 1) {
         try {
             $pingsResult = Ping-NetworkExcluding -NetworkCIDR $VMNetworkCIDR -ExcludeList $BOSHNetworkReservedRange
             $reachableCount = ($pingsResults | Where-Object { $_.Status -eq "Reachable" }).Count
-            if ($reachableCount -gt 0) {
+            if ($reachableCount -eq 0) {
                 return $true
             } else {
                 return "Network: Not all usable IPs are available"
