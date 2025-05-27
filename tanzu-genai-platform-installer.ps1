@@ -108,8 +108,11 @@ $OllamaChatModel = "gemma2:2b"
 $ToolsModel = $true
 $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 
-# Network capacity minimum test
-$NetworkCapacity = 11 # 12 minus Ops Man
+# Validation parameters
+$RequiredIPs = 11 # 12 minus Ops Man
+$RequiredStorageGB = 400
+$RequiredCpuGHz = 5
+$RequiredMemoryGB = 100
 
 # Required vSphere API privileges for Tanzu Operations Manager
 $requiredPrivileges = @(
@@ -945,6 +948,82 @@ function Test-DNSLookup {
     }
 }
 
+function Get-ClusterFreeResources {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$ClusterName,
+        
+        [Parameter(Mandatory=$false)]
+        [string]$vCenterServer,
+        
+        [Parameter(Mandatory=$false)]
+        [PSCredential]$Credential
+    )
+    
+    try {
+        # Get the cluster
+        $cluster = Get-Cluster -Name $ClusterName -ErrorAction Stop
+        
+        if (-not $cluster) {
+            Write-Error "Cluster '$ClusterName' not found"
+            return
+        }
+        
+        # Get all hosts in the cluster
+        $hosts = Get-VMHost -Location $cluster
+        
+        # Calculate total CPU resources
+        $totalCpuMhz = ($hosts | Measure-Object -Property CpuTotalMhz -Sum).Sum
+        
+        # Calculate used CPU resources
+        $usedCpuMhz = ($hosts | Measure-Object -Property CpuUsageMhz -Sum).Sum
+        
+        # Calculate free CPU
+        $freeCpuMhz = $totalCpuMhz - $usedCpuMhz
+        $freeCpuPercent = [math]::Round(($freeCpuMhz / $totalCpuMhz) * 100, 2)
+        
+        # Calculate total memory resources (in MB)
+        $totalMemoryMB = ($hosts | Measure-Object -Property MemoryTotalMB -Sum).Sum
+        
+        # Calculate used memory resources (in MB)
+        $usedMemoryMB = ($hosts | Measure-Object -Property MemoryUsageMB -Sum).Sum
+        
+        # Calculate free memory
+        $freeMemoryMB = $totalMemoryMB - $usedMemoryMB
+        $freeMemoryPercent = [math]::Round(($freeMemoryMB / $totalMemoryMB) * 100, 2)
+        
+        # Get additional cluster stats
+        $totalCores = ($hosts | Measure-Object -Property NumCpu -Sum).Sum
+        $totalHosts = $hosts.Count
+        
+        # Create results object
+        $result = [PSCustomObject]@{
+            ClusterName = $cluster.Name
+            TotalHosts = $totalHosts
+            TotalCores = $totalCores
+            # CPU Statistics
+            TotalCpuMhz = $totalCpuMhz
+            UsedCpuMhz = $usedCpuMhz
+            FreeCpuMhz = $freeCpuMhz
+            FreeCpuPercent = $freeCpuPercent
+            FreeCpuGhz = [math]::Round($freeCpuMhz / 1000, 2)
+            # Memory Statistics
+            TotalMemoryMB = $totalMemoryMB
+            UsedMemoryMB = $usedMemoryMB
+            FreeMemoryMB = $freeMemoryMB
+            FreeMemoryPercent = $freeMemoryPercent
+            FreeMemoryGB = [math]::Round($freeMemoryMB / 1024, 2)
+            TotalMemoryGB = [math]::Round($totalMemoryMB / 1024, 2)
+            UsedMemoryGB = [math]::Round($usedMemoryMB / 1024, 2)
+        }
+        
+        return $result
+        
+    } catch {
+        My-Logger "Error retrieving cluster information: $($_.Exception.Message)" -OnlyLog
+    }
+}
+
 function Run-Test {
     param(
         [Parameter(Mandatory=$true)]
@@ -1322,7 +1401,7 @@ if($preCheck -eq 1) {
     My-Logger "Validating if have at least 11 IPs available" -LogOnly
     Run-Test -TestName "Network: Network capacity" -TestCode {
         try {
-            $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $NetworkCapacity
+            $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $RequiredIPs
             if ($capacityResult -eq $true) {
                 return $true
             } else {
@@ -1350,17 +1429,17 @@ if($preCheck -eq 1) {
     }
 
     # verify Ops Man IP is in reserved range
-    My-Logger "Validating the Tanzu Operations Manger IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange" -LogOnly
-    Run-Test -TestName "Network: Tanzu Operations Manger IP is in reserved range" -TestCode {
+    My-Logger "Validating the Tanzu Operations Manager IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange" -LogOnly
+    Run-Test -TestName "Network: Tanzu Operations Manager IP is in reserved range" -TestCode {
         try {
             $opsmanResult = Test-IPAddressAvailability -NetworkCIDR $VMNetworkCIDR -IPAddress $OpsManagerIPAddress -ExcludedIPs $BOSHNetworkReservedRange
             if ($opsmanResult -ne $true) {
                 return $true
             } else {
-                return "Network: Tanzu Operations Manger IP $OpsManagerIPAddress is not in the reserved range $BOSHNetworkReservedRange"
+                return "Network: Tanzu Operations Manager IP $OpsManagerIPAddress is not in the reserved range $BOSHNetworkReservedRange"
             }
         } catch {
-            return "Error verifying if Tanzu Operations Manger IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange. Error: $($_.Exception.Message)"
+            return "Error verifying if Tanzu Operations Manager IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange. Error: $($_.Exception.Message)"
         }
     }
 
@@ -1714,6 +1793,63 @@ if($preCheck -eq 1) {
             }
         } catch {
             return "Error finding portgroup $VMNetwork. Error: $($_.Exception.Message)"
+        }
+    }
+
+    # Verify if have enough CPU resources available
+    My-Logger "Validating if Cluster $VMCluster has enough CPU resources available" -LogOnly
+    Run-Test -TestName "vSphere: CPU resources available" -TestCode {
+        try {
+            if ($script:viConnectionObject) {
+                $clusterStats = Get-ClusterFreeResources -ClusterName $VMCluster
+                if ($clusterStats.FreeCpuGhz -ge $RequiredCpuGHz) {
+                    return $true
+                } else {
+                    return "vSphere: Not enough CPU resources available"
+                }
+            } else {
+                return "vCenter connection not established"
+            }
+        } catch {
+            return "Error calculating free CPU resources. Error: $($_.Exception.Message)"
+        }
+    }
+
+    # Verify if have enough memory resources available
+    My-Logger "Validating if Cluster $VMCluster has enough memory resources available" -LogOnly
+    Run-Test -TestName "vSphere: Memory resources available" -TestCode {
+        try {
+            if ($script:viConnectionObject) {
+                $clusterStats = Get-ClusterFreeResources -ClusterName $VMCluster
+                if ($clusterStats.FreeMemoryGB -ge $RequiredMemoryGB) {
+                    return $true
+                } else {
+                    return "vSphere: Not enough memory resources available"
+                }
+            } else {
+                return "vCenter connection not established"
+            }
+        } catch {
+            return "Error calculating available memory resources. Error: $($_.Exception.Message)"
+        }
+    }
+
+    # Verify if have enough free datastore storage available
+    My-Logger "Validating if datastore $VMDatastore has enough storage available" -LogOnly
+    Run-Test -TestName "vSphere: Datastore storage available" -TestCode {
+        try {
+            if ($script:viConnectionObject) {
+                $FreeSpaceGB = (Get-Datastore -Name $VMDatastore -ErrorAction Stop).FreeSpaceGB
+                if ($FreeSpaceGB -ge $RequiredStorageGB) {
+                    return $true
+                } else {
+                    return "vSphere: Not enough datastore storage available"
+                }
+            } else {
+                return "vCenter connection not established"
+            }
+        } catch {
+            return "Error calculating available datastore storage. Error: $($_.Exception.Message)"
         }
     }
 
