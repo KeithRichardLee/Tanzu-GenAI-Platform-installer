@@ -2,19 +2,19 @@
 
 TL;DR - A powershell script that automates the install of VMware Tanzu Platform, a private PaaS which includes GenAI capabilites, on VMware vSphere with minimal resource requirements.
 
-The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, and GenAI service with models that have embedding, chat, and tools capabilities. Note, the script uses what is known as the Small Footprint Tanzu Platform for Cloud Foundry which is a repackaging of Tanzu Platform for Cloud Foundry into a smaller deployment with fewer VMs which is perfect for POC and sandbox work. Note, there are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/toc-tas-install-index.html#limits). For a much more comprehensive automated install of Tanzu Platform, which uses [Concourse](https://concourse-ci.org/), check out the [Platform Automation Toolkit for Tanzu](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/platform-automation-toolkit-for-tanzu/5-2/vmware-automation-toolkit/docs-index.html)
+The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, Healthwatch, and GenAI service with models that have embedding, chat, and tools capabilities. Note, the script uses what is known as the Small Footprint Tanzu Platform for Cloud Foundry which is a repackaging of Tanzu Platform for Cloud Foundry into a smaller deployment with fewer VMs which is perfect for POC and sandbox work. Note, there are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/toc-tas-install-index.html#limits). For a much more comprehensive automated install of Tanzu Platform, which uses [Concourse](https://concourse-ci.org/), check out the [Platform Automation Toolkit for Tanzu](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/platform-automation-toolkit-for-tanzu/5-2/vmware-automation-toolkit/docs-index.html)
 
 ## Prerequisites
 **VMware vSphere**
   - ESXi host/cluster (ESXi v7.x or v8.x) with the following spare capacity...
-    - Compute: ~40 vCPU, although only uses approx 5 GHz
-    - Memory: ~100 GB
-    - Storage: ~400 GB
+    - Compute: ~40 vCPU, although only uses approx 6 GHz
+    - Memory: ~120 GB
+    - Storage: ~475 GB
   - User / service account with the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-0/tanzu-ops-manager/vsphere-vsphere-service-account.html)
 
 **Networking**
   - IP addresses
-    - A subnet with at least 12 free IP addresses including two static IP addresses
+    - A subnet with at least 24 free IP addresses including two static IP addresses
       - 1x Tanzu Operations Manger
       - 1x GoRouter 
     
@@ -38,6 +38,8 @@ The installer takes minimum set of parameters, validates them, and then performs
   - [Small Footprint Tanzu Platform for Cloud Foundry](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry)
   - [VMware Postgres](https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry)
   - [GenAI for Tanzu Platform](https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry)
+  - [Healthwatch](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch)
+  - [Healthwatch Exporter](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch)
 - This repo cloned eg `git clone https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer.git`
 
 
@@ -59,7 +61,7 @@ Update infra config fields
 ### Infra config
 $VIServer          = "vcenter.tanzu.lab"
 $VIUsername        = "administrator@tanzu.lab"
-$VIPassword        = "my-super-safe-password!"
+$VIPassword        = 'my-super-safe-password!'
 $VMDatacenter      = "Tanzu-DC"
 $VMCluster         = "Tanzu-Cluster"
 $VMResourcePool    = "Tanzu-Platform-RP"
@@ -76,19 +78,26 @@ $VMNTP             = "10.0.70.1"
 Update Tanzu Platform config fields
 ```bash
 ### Tanzu Platform config
-$OpsManagerAdminPassword  = "my-super-safe-password!"   
+$OpsManagerAdminPassword  = 'my-super-safe-password!'
 $OpsManagerIPAddress      = "10.0.70.10"       
 $OpsManagerFQDN           = "opsman.tanzu.lab"            
-$BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10,10.0.70.21-10.0.70.254"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
+$BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10,10.0.70.30-10.0.70.254"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
 $TPCFGoRouter             = "10.0.70.20"                                             #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain               = "tp.tanzu.lab"                                           #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
 ```
 
+Update Healthwatch fields
+```bash
+### Install Healthwatch (observability)?
+$InstallHealthwatch = $true
+$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+```
 
 ## Run the script
 - Open a powershell console eg `pwsh`
 - Execute the script eg `tanzu-genai-platform-installer.ps1`
-- Installation can take up to 2.5 hours. Install time depends on the performance of your underlying infrastructure. 
+- Installation can take up to 3 hours. Install time depends on the performance of your underlying infrastructure. 
 
 - Note; if this is your first time using Powershell with the VMware PowerCLI module, you may be promted participate in the VMware CEIP. You can accept/deny so not prompted again by running `Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $true or $false`
 
@@ -288,6 +297,8 @@ Script validated against the following versions...
 - Tanzu Platform for Cloud Foundry small footprint: srt-10.0.5-build.2.pivotal
 - VMware Postgres: postgres-10.0.0-build.31.pivotal
 - Tanzu GenAI: genai-10.0.3.pivotal
+- Healthwatch: healthwatch-2.3.2-build.21.pivotal
+- Healthwatch Exporter: healthwatch-pas-exporter-2.3.2-build.21.pivotal
 - OM CLI: 7.15.1
 - Powershell: 7.5.1
 - PowerCLI: 13.3.0
