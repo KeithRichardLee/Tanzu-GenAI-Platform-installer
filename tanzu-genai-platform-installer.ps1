@@ -23,7 +23,7 @@ $OMCLI        = "/usr/local/bin/om"                                            #
 ### Infra config
 $VIServer = "FILL-ME-IN"
 $VIUsername = "FILL-ME-IN"
-$VIPassword = "FILL-ME-IN"
+$VIPassword = 'FILL-ME-IN'
 $VMDatacenter = "FILL-ME-IN"
 $VMCluster = "FILL-ME-IN"
 $VMResourcePool = "FILL-ME-IN"  #where Tanzu Platform will be installed. Create manually before running the script.
@@ -37,7 +37,7 @@ $VMDNS = "FILL-ME-IN"
 $VMNTP = "FILL-ME-IN"
 
 ### Tanzu Platform config
-$OpsManagerAdminPassword = "FILL-ME-IN"
+$OpsManagerAdminPassword = 'FILL-ME-IN'
 $OpsManagerIPAddress = "FILL-ME-IN"
 $OpsManagerFQDN = "FILL-ME-IN"
 $BOSHNetworkReservedRange = "FILL-ME-IN"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox eg 10.0.70.0-10.0.70.2,10.0.70.10
@@ -92,7 +92,7 @@ $BOSHAZAssignment = "az1"
 $BOSHNetworkAssignment = "tp-network"
 
 # Tanzu Platform for Cloud Foundry (TPCF) configuration
-$TPCFCredHubSecret = "VMware1!VMware1!VMware1!" # must be 20 or more characters
+$TPCFCredHubSecret = 'VMware1!VMware1!VMware1!' # must be 20 or more characters
 $TPCFAZ = $BOSHAZAssignment
 $TPCFNetwork = $BOSHNetworkAssignment
 $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
