@@ -8,6 +8,7 @@
 # - Configure and deploy VMware Tanzu Platform for Cloud Foundry
 # - Configure and deploy VMware Postgres
 # - Configure and deploy VMware Tanzu GenAI
+# - Configure and deploy Healthwatch & Healthwatch Exporter
 #
 ############################################################################################
 
@@ -43,6 +44,11 @@ $OpsManagerFQDN = "FILL-ME-IN"
 $BOSHNetworkReservedRange = "FILL-ME-IN"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox eg 10.0.70.0-10.0.70.2,10.0.70.10
 $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
+
+# Install Healthwatch (observability)?
+$InstallHealthwatch = $true
+$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 
 ### end of required inputs
 
@@ -109,10 +115,18 @@ $ToolsModel = $true
 $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 
 # Validation parameters
-$RequiredIPs = 11 # 12 minus Ops Man
-$RequiredStorageGB = 400
-$RequiredCpuGHz = 5
-$RequiredMemoryGB = 100
+if ($InstallHealthwatch){
+    $RequiredIPs = 23 # 24 minus Ops Man
+    $RequiredStorageGB = 475
+    $RequiredCpuGHz = 6
+    $RequiredMemoryGB = 120
+}
+else {
+    $RequiredIPs = 11 # 12 minus Ops Man
+    $RequiredStorageGB = 400
+    $RequiredCpuGHz = 5
+    $RequiredMemoryGB = 100
+}
 
 # Required vSphere API privileges for Tanzu Operations Manager
 $requiredPrivileges = @(
@@ -215,6 +229,7 @@ $setupBOSHDirector = 1
 $setupTPCF = 1
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
+$setupHealthwatch = $InstallHealthwatch
 
 ############################################################################################
 #### DO NOT EDIT BEYOND HERE ####
@@ -1164,6 +1179,12 @@ if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor White $PostgresTile
     Write-Host -NoNewline -ForegroundColor Green "Tanzu GenAI tile path: "
     Write-Host -ForegroundColor White $GenAITile
+    if ($InstallHealthwatch) {
+        Write-Host -NoNewline -ForegroundColor Green "Healthwatch tile path: "
+        Write-Host -ForegroundColor White $HealthwatchTile
+        Write-Host -NoNewline -ForegroundColor Green "Healthwatch Expoerter tile path: "
+        Write-Host -ForegroundColor White $HealthwatchExporterTile
+    }
     Write-Host -NoNewline -ForegroundColor Green "OM CLI path: "
     Write-Host -ForegroundColor White $OMCLI
 
@@ -1242,15 +1263,25 @@ if($confirmDeployment -eq 1) {
     $domainlist = "*.apps.$TPCFDomain,*.login.sys.$TPCFDomain,*.uaa.sys.$TPCFDomain,*.sys.$TPCFDomain,*.$TPCFDomain"    
     Write-Host -ForegroundColor White $domainlist
 
-    Write-Host -ForegroundColor Yellow "`n---- Tanzu AI Solutions Configuration ----"
-    Write-Host -NoNewline -ForegroundColor Green "Ollama embedding model: "
-    Write-Host -ForegroundColor White $OllamaEmbedModel
-    if ($ToolsModel) {
-        Write-Host -NoNewline -ForegroundColor Green "Ollama chat & tools model: "
-        Write-Host -ForegroundColor White $OllamaChatToolsModel
-    } else {
-        Write-Host -NoNewline -ForegroundColor Green "Ollama chat model: "
-        Write-Host -ForegroundColor White $OllamaChatModel
+    if ($InstallTanzuAI) {
+        Write-Host -ForegroundColor Yellow "`n---- Tanzu AI Solutions Configuration ----"
+        Write-Host -NoNewline -ForegroundColor Green "Ollama embedding model: "
+        Write-Host -ForegroundColor White $OllamaEmbedModel
+        if ($ToolsModel) {
+            Write-Host -NoNewline -ForegroundColor Green "Ollama chat & tools model: "
+            Write-Host -ForegroundColor White $OllamaChatToolsModel
+        } else {
+            Write-Host -NoNewline -ForegroundColor Green "Ollama chat model: "
+            Write-Host -ForegroundColor White $OllamaChatModel
+        }
+    }
+
+    if ($InstallHealthwatch) {
+        Write-Host -ForegroundColor Yellow "`n---- Healthwatch Configuration ----"
+        Write-Host -NoNewline -ForegroundColor Green "AZ: "
+        Write-Host -ForegroundColor White $BOSHAZAssignment
+        Write-Host -NoNewline -ForegroundColor Green "Network: "
+        Write-Host -ForegroundColor White $BOSHNetworkAssignment
     }
 
     Write-Host -ForegroundColor Magenta "`nWould you like to proceed with this deployment?`n"
@@ -1287,22 +1318,34 @@ if($preCheck -eq 1) {
     }
 
     # Verify if VMware Postgres tile file exists
-    My-Logger "Validating if VMware Postgres tile file exists at $PostgresTile" -LogOnly
-    Run-Test -TestName "Files: VMware Postgres tile file exists" -TestCode {
-        if ($InstallTanzuAI -eq $true) {
+    if ($InstallTanzuAI) {
+        My-Logger "Validating if VMware Postgres tile file exists at $PostgresTile" -LogOnly
+        Run-Test -TestName "Files: VMware Postgres tile file exists" -TestCode {
             if (Test-Path $PostgresTile) { return $true } else { return "Files: Unable to find $PostgresTile" }
-        } else {
-            return $true # Skip if not installing TanzuAI
         }
     }
 
     # Verify if Tanzu GenAI tile file exists
-    My-Logger "Validating if Tanzu GenAI tile file exists at $GenAITile" -LogOnly
-    Run-Test -TestName "Files: Tanzu GenAI tile file exists" -TestCode {
-        if ($InstallTanzuAI -eq $true) {
+    if ($InstallTanzuAI) {
+        My-Logger "Validating if Tanzu GenAI tile file exists at $GenAITile" -LogOnly
+        Run-Test -TestName "Files: Tanzu GenAI tile file exists" -TestCode {
             if (Test-Path $GenAITile) { return $true } else { return "Files: Unable to find $GenAITile" }
-        } else {
-            return $true # Skip if not installing TanzuAI
+        }
+    }
+
+    # Verify if Healthwatch tile file exists
+    if ($InstallHealthwatch) {
+        My-Logger "Validating if Healthwatch tile file exists at $HealthwatchTile" -LogOnly
+        Run-Test -TestName "Files: Healthwatch tile file exists" -TestCode {
+            if (Test-Path $HealthwatchTile) { return $true } else { return "Files: Unable to find $HealthwatchTile" }
+        }
+    }
+
+    # Verify if Healthwatch Exporter tile file exists
+    if ($InstallHealthwatch -eq $true) {
+        My-Logger "Validating if Healthwatch Exporter tile file exists at $HealthwatchExporterTile" -LogOnly
+        Run-Test -TestName "Files: Healthwatch Exporter tile file exists" -TestCode {
+            if (Test-Path $HealthwatchExporterTile) { return $true } else { return "Files: Unable to find $HealthwatchExporterTile" }
         }
     }
 
@@ -1884,10 +1927,10 @@ if($preCheck -eq 1) {
                     return "Platform: BOSH Director is already installed"
                 }
             } catch {
-                return "BOSH Director is already installed. Error: $($_.Exception.Message)"
+                return "Unable to confirm if BOSH Director is already installed. Error: $($_.Exception.Message)"
             }
         }
-        
+
         # Check if Tanzu Platform Cloud Foundary is already installed
         My-Logger "Validating if Tanzu Platform Cloud Foundary is not already installed" -LogOnly
         Run-Test -TestName "Platform: Tanzu Platform Cloud Foundary is not installed" -TestCode {
@@ -1900,41 +1943,82 @@ if($preCheck -eq 1) {
                     return "Platform: Tanzu Platform Cloud Foundary is already installed"
                 }
             } catch {
-                return "Tanzu Platform Cloud Foundary is already installed. Error: $($_.Exception.Message)"
+                return "Unable to confirm if Tanzu Platform Cloud Foundary is already installed. Error: $($_.Exception.Message)"
             }
         }
-        
+
         # Check if VMware Postgres is already installed
-        My-Logger "Validating if VMware Postgres is not already installed" -LogOnly
-        Run-Test -TestName "Platform: VMware Postgres is not installed" -TestCode {
-            try {
-                $productToCheck = "postgres"
-                $deployedResult = Check-productDeployed -productName $productToCheck
-                if (!$deployedResult){
-                    return $true
-                } else {
-                    return "Platform: VMware Postgres is already installed"
+        if ($InstallTanzuAI) {
+            My-Logger "Validating if VMware Postgres is not already installed" -LogOnly
+            Run-Test -TestName "Platform: VMware Postgres is not installed" -TestCode {
+                try {
+                    $productToCheck = "postgres"
+                    $deployedResult = Check-productDeployed -productName $productToCheck
+                    if (!$deployedResult){
+                        return $true
+                    } else {
+                        return "Platform: VMware Postgres is already installed"
+                    }
+                } catch {
+                    return "Unable to confirm if VMware Postgres is already installed. Error: $($_.Exception.Message)"
                 }
-            } catch {
-                return "VMware Postgres is already installed. Error: $($_.Exception.Message)"
             }
         }
-        
+
         # Check if Tanzu GenAI is already installed
-        My-Logger "Validating if Tanzu GenAI is not already installed" -LogOnly
-        Run-Test -TestName "Platform: Tanzu GenAI is not installed" -TestCode {
-            try {
-                $productToCheck = "genai"
-                $deployedResult = Check-productDeployed -productName $productToCheck
-                if (!$deployedResult){
-                    return $true
-                } else {
-                    return "Platform: Tanzu GenAI is already installed"
+        if ($InstallTanzuAI) {
+            My-Logger "Validating if Tanzu GenAI is not already installed" -LogOnly
+            Run-Test -TestName "Platform: Tanzu GenAI is not installed" -TestCode {
+                try {
+                    $productToCheck = "genai"
+                    $deployedResult = Check-productDeployed -productName $productToCheck
+                    if (!$deployedResult){
+                        return $true
+                    } else {
+                        return "Platform: Tanzu GenAI is already installed"
+                    }
+                } catch {
+                    return "Unable to confirm if Tanzu GenAI is already installed. Error: $($_.Exception.Message)"
                 }
-            } catch {
-                return "Tanzu GenAI is already installed. Error: $($_.Exception.Message)"
             }
         }
+
+        # Check if Healthwatch is already installed
+        if ($InstallHealthwatch) {
+            My-Logger "Validating if Healthwatch is not already installed" -LogOnly
+            Run-Test -TestName "Platform: Healthwatch is not installed" -TestCode {
+                try {
+                    $productToCheck = "p-healthwatch2"
+                    $deployedResult = Check-productDeployed -productName $productToCheck
+                    if (!$deployedResult){
+                        return $true
+                    } else {
+                        return "Platform: Healthwatch is already installed"
+                    }
+                } catch {
+                    return "Unable to confirm if Healthwatch is already installed. Error: $($_.Exception.Message)"
+                }
+            }
+        }
+
+        # Check if Healthwatch Exporter is already installed
+        if ($InstallHealthwatch) {
+            My-Logger "Validating if Healthwatch Exporter is not already installed" -LogOnly
+            Run-Test -TestName "Platform: Healthwatch Exporter is not installed" -TestCode {
+                try {
+                    $productToCheck = "p-healthwatch2-pas-exporter"
+                    $deployedResult = Check-productDeployed -productName $productToCheck
+                    if (!$deployedResult){
+                        return $true
+                    } else {
+                        return "Platform: Healthwatch Exporter is already installed"
+                    }
+                } catch {
+                    return "Unable to confirm if Healthwatch Exporter is already installed. Error: $($_.Exception.Message)"
+                }
+            }
+        }
+
     }
 
     # Verify if VMware PowerCLI module is installed
@@ -2264,8 +2348,6 @@ resource-config:
 
 if($setupPostgres -eq 1) {
 
-    #My-Logger "Installing VMware Postgres..."
-
     # Verify if Postgres is already installed
     $productToCheck = "postgres"
     $deployedResult = Check-productDeployed -productName $productToCheck
@@ -2496,6 +2578,113 @@ network-properties:
     }
 
     My-Logger "Tanzu GenAI successfully installed"
+}
+
+if($setupHealthwatch -eq 1) {
+    # Verify if Healthwatch is already installed
+    $productToCheck = "p-healthwatch2"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Healthwatch tile is already installed" -level Error -color Red
+        exit
+    }
+    
+    # Verify if Healthwatch Exporter is already installed
+    $productToCheck = "p-healthwatch2-pas-exporter"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Healthwatch Exporter tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $HealthwatchProductName = & "$OMCLI" product-metadata --product-path $HealthwatchTile --product-name
+    $HealthwatchVersion = & "$OMCLI" product-metadata --product-path $HealthwatchTile --product-version
+    $HealthwatchExporterProductName = & "$OMCLI" product-metadata --product-path $HealthwatchExporterTile --product-name
+    $HealthwatchExporterVersion = & "$OMCLI" product-metadata --product-path $HealthwatchExporterTile --product-version
+
+    # Upload Healthwatch tile
+    My-Logger "Uploading Healthwatch tile to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HealthwatchTile", "-r", "3600")
+    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Upload Healthwatch Exporter tile
+    My-Logger "Uploading Healthwatch Exporter tile to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HealthwatchExporterTile", "-r", "3600")
+    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage Healthwatch tile
+    My-Logger "Adding Healthwatch tile to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HealthwatchProductName", "--product-version", "$HealthwatchVersion")
+    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage Healthwatch Exporter tile
+    My-Logger "Adding Healthwatch Exporter tile to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HealthwatchExporterProductName", "--product-version", "$HealthwatchExporterVersion")
+    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # No config needed for Healthwatch
+    
+    # Create Healthwatch Exporter config yaml
+    $HealthwatchExporterPayload = @"
+---
+product-name: p-healthwatch2-pas-exporter
+product-properties:
+  .bosh-health-exporter.health_check_az:
+    value: $BOSHAZAssignment
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+
+    $HealthwatchExporteryaml = "HealthwatchExporter-config.yaml"
+    $HealthwatchExporterPayload > $HealthwatchExporteryaml
+
+    My-Logger "Applying Healthwatch configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$HealthwatchExporteryaml")
+    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Installing Healthwatch and Healthwatch Exporter (can take up to 35 minutes)..."
+    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$HealthwatchProductName", "--product-name", "$HealthwatchExporterProductName")
+    if($debug) {My-Logger "${OMCLI} $installArgs"}
+    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Healthwatch and Healthwatch Exporter successfully installed"
 }
 
 $EndTime = Get-Date
