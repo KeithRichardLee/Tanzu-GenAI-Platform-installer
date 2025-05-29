@@ -729,7 +729,7 @@ function Test-IPAddressAvailability {
             $endInt = ConvertTo-IPInteger $endIP
             
             if ($targetInt -ge $startInt -and $targetInt -le $endInt) {
-                My-Logger "IP $IPAddress is not available (found in reserved range: $part)" -LogOnly
+                My-Logger "IP $IPAddress is not available (found in the reserved range: $part)" -LogOnly
                 return $false
             }
         }
@@ -1488,7 +1488,7 @@ if($preCheck -eq 1) {
 
     # verify the GoRouter IP is not in the reserved range
     My-Logger "Validating the GoRouter IP $TPCFGoRouter is not in the reserved range $BOSHNetworkReservedRange" -LogOnly
-    Run-Test -TestName "Network: GoRouter is not in reserved range" -TestCode {
+    Run-Test -TestName "Network: GoRouter is not in the reserved range" -TestCode {
         try {
             $gorouterResult = Test-IPAddressAvailability -NetworkCIDR $VMNetworkCIDR -IPAddress $TPCFGoRouter -ExcludedIPs $BOSHNetworkReservedRange
             if ($gorouterResult -eq $true) {
@@ -2244,7 +2244,7 @@ if($setupTPCF -eq 1) {
     $TPCFVersion = & "$OMCLI" product-metadata --product-path $TPCFTile --product-version
 
     # Upload tile
-    My-Logger "Uploading Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager (can take up to 15 mins)..."
+    My-Logger "Uploading Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager (can take up to 15 minutes)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$TPCFTile", "-r", "3600")
     if($debug) {My-Logger "${OMCLI} $configArgs"}
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
