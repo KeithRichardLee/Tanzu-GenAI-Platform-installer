@@ -1182,7 +1182,7 @@ if($confirmDeployment -eq 1) {
     if ($InstallHealthwatch) {
         Write-Host -NoNewline -ForegroundColor Green "Healthwatch tile path: "
         Write-Host -ForegroundColor White $HealthwatchTile
-        Write-Host -NoNewline -ForegroundColor Green "Healthwatch Expoerter tile path: "
+        Write-Host -NoNewline -ForegroundColor Green "Healthwatch Exporter tile path: "
         Write-Host -ForegroundColor White $HealthwatchExporterTile
     }
     Write-Host -NoNewline -ForegroundColor Green "OM CLI path: "
