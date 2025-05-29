@@ -103,8 +103,9 @@ $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.
 - Note; if this is your first time using Powershell with the VMware PowerCLI module, you may be promted participate in the VMware CEIP. You can accept/deny so not prompted again by running `Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $true or $false`
 
 ## Example of script output
-![verify config](images/tanzu-genai-platform-installer-verify-config.png)
-![script output](images/tanzu-genai-platform-installer-script-output.png)
+![Config](images/tanzu-genai-platform-installer-config.png)
+![Prechecks](images/tanzu-genai-platform-installer-prechecks.png)
+![Install](images/tanzu-genai-platform-installer-install.png)
 
 # Next steps: Deploy a sample app
 Below we will deploy a Spring chatbot application which can consume AI services by the platform
