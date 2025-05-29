@@ -100,7 +100,7 @@ $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.
 - Execute the script eg `tanzu-genai-platform-installer.ps1`
 - Installation can take up to 3 hours. Install time depends on the performance of your underlying infrastructure. 
 
-- Note; if this is your first time using Powershell with the VMware PowerCLI module, you may be promted participate in the VMware CEIP. You can accept/deny so not prompted again by running `Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $true or $false`
+- Note; if this is your first time using Powershell with the VMware PowerCLI module, you may be prompted to participate in the VMware CEIP. You can accept/deny so not prompted again by running `Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $true or $false`
 
 ## Example of script output
 ![Config](images/tanzu-genai-platform-installer-config.png)
