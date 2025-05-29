@@ -7,9 +7,9 @@ The installer takes minimum set of parameters, validates them, and then performs
 ## Prerequisites
 **VMware vSphere**
   - ESXi host/cluster (ESXi v7.x or v8.x) with the following spare capacity...
-    - Compute: ~40 vCPU, although only uses approx 6 GHz
+    - Compute: ~72 vCPU, although only uses approx 6 GHz
     - Memory: ~120 GB
-    - Storage: ~475 GB
+    - Storage: ~450 GB
   - User / service account with the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-0/tanzu-ops-manager/vsphere-vsphere-service-account.html)
 
 **Networking**
@@ -86,7 +86,8 @@ $TPCFGoRouter             = "10.0.70.20"                                        
 $TPCFDomain               = "tp.tanzu.lab"                                           #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
 ```
 
-Update Healthwatch fields
+Update Healthwatch fields 
+- Note; installing Healthwatch (observability) is optional. vSphere resource requirements drop to ~51 vCPU, ~105 GB memory, ~325 GB storage if Healthwatch is not installed.
 ```bash
 ### Install Healthwatch (observability)?
 $InstallHealthwatch = $true
