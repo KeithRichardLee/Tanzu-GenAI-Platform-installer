@@ -104,7 +104,7 @@ $TPCFNetwork = $BOSHNetworkAssignment
 $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
 
 # Install Tanzu AI Solutions?
-$InstallTanzuAI = $true 
+$InstallTanzuAI = $false 
 
 # Tanzu AI Solutions config 
 $OllamaEmbedModel = "nomic-embed-text"
@@ -128,14 +128,21 @@ else {
     $RequiredMemoryGB = 100
 }
 
-# Required vSphere API privileges for Tanzu Operations Manager
-$requiredPrivileges = @(
+
+# Required vSphere API privileges at vCenter level for Tanzu Operations Manager
+$requiredVcenterPrivileges = @(
     "System.Anonymous",
     "System.Read",
     "System.View",
     "Global.ManageCustomFields",
     "Global.SetCustomField",
     "Extension.Register",
+    "StorageProfile.Update",
+    "StorageProfile.View"
+)
+
+# Required vSphere API privileges at Datacenter level for Tanzu Operations Manager
+$requiredDatacenterPrivileges = @(
     "Datastore.FileManagement",
     "Network.Assign",
     "Datastore.AllocateSpace",
@@ -218,9 +225,9 @@ $requiredPrivileges = @(
     "VApp.ApplicationConfig"
 )
 
-$debug = $false
 $verboseLogFile = "tanzu-genai-platform-installer.log"
 
+# Installer Overrides
 $confirmDeployment = 1
 $preCheck = 1
 $deployOpsManager = 1
@@ -230,6 +237,7 @@ $setupTPCF = 1
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
 $setupHealthwatch = $InstallHealthwatch
+$ignoreWarnings = $false
 
 ############################################################################################
 #### DO NOT EDIT BEYOND HERE ####
@@ -311,118 +319,135 @@ function Check-productDeployed {
     return $hasDeployedEntry
 }
 
-function Check-UserPermissions {
+function Test-UserPrivileges {
     [CmdletBinding()]
-    param (
+    param(
         [Parameter(Mandatory = $true)]
-        [string]$User
+        [ValidatePattern("^.+@.+$")]
+        [string]$Username,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$EntityName,
+        
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Datacenter", "vCenter")]
+        [string]$EntityType,
+        
+        [Parameter(Mandatory = $true)]
+        [string[]]$RequiredPrivileges
     )
-
-    # Get all the permission entities in vCenter
-    My-Logger "Getting permissions for user: $User" -LogOnly
-    $allPermissions = Get-VIPermission | Where-Object { $_.Principal -eq $User }
-
-    if (-not $allPermissions) {
-        My-Logger "No direct permissions found for user: $User" -LogOnly
-        $hasPermissions = $false
-    }
-    else {
-        My-Logger "Found $($allPermissions.Count) direct permission entries" -LogOnly
-        $hasPermissions = $true
-    }
-
-    # Create a hash table to track permissions by entity
-    $permissionsByEntity = @{}
-    $directPermissions = @()
-    $hasAllRequiredPrivileges = $false
     
-    foreach ($permission in $allPermissions) {
-        $roleName = $permission.Role
-        $entityName = $permission.Entity.Name
-        $entityType = $permission.Entity.GetType().Name
-
-        $directPermissions += [PSCustomObject]@{
-            Entity = $entityName
-            EntityType = $entityType
-            Role = $roleName
-            Propagate = $permission.Propagate
+    try {
+        # Convert username@domain to domain\username format
+        if ($Username -match "^(.+)@(.+)$") {
+            $userPart = $matches[1]
+            $domainPart = $matches[2]
+            $UserPrincipal = "$domainPart\$userPart"
+            My-Logger "Converted '$Username' to user principal format: '$UserPrincipal'" -LogOnly
+        } else {
+            throw "Invalid username format. Expected format: username@domain (e.g., tanzu@vsphere.local)"
         }
-
-        # Get the role details to check privileges
-        $role = Get-VIRole -Name $roleName
-        $rolePrivileges = $role.PrivilegeList
-
-        # Check if this role grants the required privileges
-        $missingPrivileges = $requiredPrivileges | Where-Object { $rolePrivileges -notcontains $_ }
         
-        if ($missingPrivileges.Count -eq 0) {
-            $hasAllRequiredPrivileges = $true
+        My-Logger "Checking privileges for user: $UserPrincipal (original: $Username) on $EntityType entity: $EntityName" -LogOnly
+        
+        # Get the entity based on type
+        switch ($EntityType) {
+            "Datacenter" {
+                $entity = Get-Datacenter -Name $EntityName -ErrorAction Stop
+                if (-not $entity) {
+                    throw "Datacenter '$EntityName' not found."
+                }
+            }
+            "vCenter" {
+                # For vCenter root entity, we need to get the root folder or use the service instance
+                $entity = Get-Folder -Name "Datacenters" -ErrorAction SilentlyContinue
+                if (-not $entity) {
+                    # Alternative method to get vCenter root entity
+                    $entity = Get-View -ViewType Folder -Filter @{"Name" = "Datacenters"} -ErrorAction SilentlyContinue
+                    if (-not $entity) {
+                        # Use service instance as fallback
+                        $serviceInstance = Get-View ServiceInstance
+                        $entity = Get-View $serviceInstance.Content.RootFolder
+                    }
+                }
+                My-Logger "Using vCenter root entity for privilege check" -LogOnly
+            }
+        }
+        
+        # Get all permissions for the entity
+        $permissions = Get-VIPermission -Entity $entity -ErrorAction Stop
+        
+        # Find permissions for the specified user
+        $userPermissions = $permissions | Where-Object { $_.Principal -eq $UserPrincipal }
+        
+        if (-not $userPermissions) {
+            My-Logger "No direct permissions found for user '$UserPrincipal' on $EntityType '$EntityName'" -LogOnly
             
-            if (-not $permissionsByEntity.ContainsKey($entityName)) {
-                $permissionsByEntity[$entityName] = @{
-                    Entity = $permission.Entity
-                    EntityType = $entityType
-                    HasAllPrivileges = $true
-                    Propagate = $permission.Propagate
-                }
+            # Create result object for no permissions found
+            return [PSCustomObject]@{
+                Username = $Username
+                UserPrincipal = $UserPrincipal
+                EntityName = $EntityName
+                EntityType = $EntityType
+                HasAllRequiredPrivileges = $false
+                MissingPrivileges = $RequiredPrivileges
+                GrantedPrivileges = @()
+                PermissionRoles = @()
             }
         }
-        else {
-            if (-not $permissionsByEntity.ContainsKey($entityName)) {
-                $permissionsByEntity[$entityName] = @{
-                    Entity = $permission.Entity
-                    EntityType = $entityType
-                    HasAllPrivileges = $false
-                    MissingPrivileges = $missingPrivileges
-                    Propagate = $permission.Propagate
-                }
+        
+        # Get all privileges granted through roles
+        $grantedPrivileges = @()
+        $roleNames = @()
+        
+        foreach ($permission in $userPermissions) {
+            $role = Get-VIRole -Name $permission.Role -ErrorAction SilentlyContinue
+            if ($role) {
+                $roleNames += $role.Name
+                $grantedPrivileges += $role.PrivilegeList
             }
         }
+        
+        # Remove duplicates
+        $grantedPrivileges = $grantedPrivileges | Sort-Object | Get-Unique
+        $roleNames = $roleNames | Sort-Object | Get-Unique
+        
+        # Check which required privileges are missing
+        $missingPrivileges = @()
+        $hasAllPrivileges = $true
+        
+        foreach ($requiredPriv in $RequiredPrivileges) {
+            if ($requiredPriv -notin $grantedPrivileges) {
+                $missingPrivileges += $requiredPriv
+                $hasAllPrivileges = $false
+            }
+        }
+        
+        # Create and return result object
+        $result = [PSCustomObject]@{
+            Username = $Username
+            UserPrincipal = $UserPrincipal
+            EntityName = $EntityName
+            EntityType = $EntityType
+            HasAllRequiredPrivileges = $hasAllPrivileges
+            MissingPrivileges = $missingPrivileges
+            GrantedPrivileges = $grantedPrivileges
+            PermissionRoles = $roleNames
+        }
+        
+        # Output summary
+        if ($hasAllPrivileges) {
+            My-Logger "User '$Username' has all required privileges on $EntityType '$EntityName'" -LogOnly
+        } else {
+            My-Logger "User '$Username' is missing the following privileges on $EntityType '$EntityName':" -level Error -LogOnly
+            $missingPrivileges | ForEach-Object { My-Logger "- $_" -level Error -LogOnly }
+        }
+        
+        return $result
     }
-
-    # Display direct permissions
-    if ($directPermissions.Count -gt 0) {
-        My-Logger "Direct Permissions for $User :" -LogOnly
-        $directPermissions | Out-File -FilePath $verboseLogFile -Append
-        
-        # List entities with complete permissions
-        $entitiesWithFullPermissions = $permissionsByEntity.GetEnumerator() | Where-Object { $_.Value.HasAllPrivileges -eq $true }
-        
-        if ($entitiesWithFullPermissions.Count -gt 0) {
-            My-Logger "Entities where $User has ALL required privileges:" -LogOnly
-            foreach ($entry in $entitiesWithFullPermissions) {
-                My-Logger "  - $($entry.Key) (Type: $($entry.Value.EntityType), Propagate: $($entry.Value.Propagate))" -LogOnly
-            }
-            $hasAllRequiredPrivileges = $true
-        }
-        
-        # List entities with incomplete permissions and show what's missing
-        $entitiesWithPartialPermissions = $permissionsByEntity.GetEnumerator() | Where-Object { $_.Value.HasAllPrivileges -eq $false }
-        
-        if ($entitiesWithPartialPermissions.Count -gt 0) {
-            My-Logger "Entities where $User has INCOMPLETE privileges:" -LogOnly
-            foreach ($entry in $entitiesWithPartialPermissions) {
-                My-Logger "  - $($entry.Key) (Type: $($entry.Value.EntityType))" -LogOnly
-                My-Logger "    Missing: $($entry.Value.MissingPrivileges -join ', ')" -LogOnly
-            }
-        }
-    }
-
-    # Final assessment
-    if ($hasPermissions) {
-        # Check if user has direct full permissions
-        if ($hasAllRequiredPrivileges) {
-            My-Logger "RESULT: User $User has all required permissions" -LogOnly
-            return $true
-        }
-        else {
-            My-Logger "RESULT: User $User has some but not all of the required permissions" -LogOnly
-            return $false
-        }
-    }
-    else {
-        My-Logger "RESULT: User $User does not have any of the required permissions" -LogOnly
-        return $false
+    catch {
+        My-Logger "Error checking privileges: $($_.Exception.Message)" -LogOnly
+        throw
     }
 }
 
@@ -1047,7 +1072,7 @@ function Run-Test {
         [scriptblock]$TestCode
     )
     
-    if($debug) {My-Logger "Running test: $TestName" "INFO"}
+    My-Logger "Running test: $TestName" -LogOnly
     
     # Add test to order tracking array
     $script:TestOrder += $TestName
@@ -1059,21 +1084,21 @@ function Run-Test {
                 Result = "PASS"
                 Message = "Test passed successfully"
             }
-            if($debug) {My-Logger "Test '$TestName' passed" "INFO"}
+            My-Logger "Test $TestName passed" -LogOnly
         } else {
             $TestResults[$TestName] = @{
                 Result = "FAIL"
                 Message = $result
             }
-            if($debug) {My-Logger "Test '$TestName' failed: $result" "ERROR"}
+            My-Logger "Test $TestName failed: $result" -level Error -LogOnly
         }
     } catch {
         $TestResults[$TestName] = @{
             Result = "FAIL"
             Message = $_.Exception.Message
         }
-        if($debug) {My-Logger "Test '$TestName' failed with exception: $($_.Exception.Message)" "ERROR"}
-    }
+        My-Logger "Test $TestName failed with exception: $($_.Exception.Message)" -level Error -LogOnly
+        }
 }
 
 function Show-TestResults {
@@ -1440,8 +1465,8 @@ if($preCheck -eq 1) {
         }
     }
 
-    # verify have at least 11 (12 minus ops man) IPs available
-    My-Logger "Validating if have at least 11 IPs available" -LogOnly
+    # verify have enough IPs available
+    My-Logger "Validating if have at least $RequiredIPs IPs available" -LogOnly
     Run-Test -TestName "Network: Network capacity" -TestCode {
         try {
             $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $RequiredIPs
@@ -1471,9 +1496,9 @@ if($preCheck -eq 1) {
         }
     }
 
-    # verify Ops Man IP is in reserved range
+    # verify Ops Man IP is in the reserved range
     My-Logger "Validating the Tanzu Operations Manager IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange" -LogOnly
-    Run-Test -TestName "Network: Tanzu Operations Manager IP is in reserved range" -TestCode {
+    Run-Test -TestName "Network: Tanzu Operations Manager IP is in the reserved range" -TestCode {
         try {
             $opsmanResult = Test-IPAddressAvailability -NetworkCIDR $VMNetworkCIDR -IPAddress $OpsManagerIPAddress -ExcludedIPs $BOSHNetworkReservedRange
             if ($opsmanResult -ne $true) {
@@ -1645,88 +1670,17 @@ if($preCheck -eq 1) {
     $username = $parts[0]
     $domain = $parts[1]
     $userPrincipal = "$domain\$username"
-    # check if user is found as a Principal
+    # check if user is found as a Principal. Need to add logic to handle if the users group is added as the principal, not the user directly. SSO module requires admin rights which the installer may not have.
     $checkUser = Get-VIPermission | Where-Object { $_.Principal -eq $userPrincipal }
     if ($checkUser) {
         My-Logger "User $userPrincipal is a principal" -LogOnly
         Run-Test -TestName "vSphere: API permissions" -TestCode {
             try {
-                $perms = Check-UserPermissions -User $userPrincipal
-                if ($perms -eq $true){
+                $vcResult = Test-UserPrivileges -Username $VIUsername -EntityName $VIServer -EntityType "vCenter" -RequiredPrivileges $requiredVcenterPrivileges
+                $dcResult = Test-UserPrivileges -Username $VIUsername -EntityName $VMDatacenter -EntityType "Datacenter" -RequiredPrivileges $requiredDatacenterPrivileges
+                if ($vcResult.HasAllRequiredPrivileges -and $dcResult.HasAllRequiredPrivileges){
                     return $true
                 } else {
-                    <#
-                    # If the user is not a principal, then need to check what group the user is a member of and check if that group has required permissions
-                    #
-                    # The following code requires...
-                    #   1) VMware.vSphere.SsoAdmin module
-                    #   2) SSO admin permissions
-                    #
-                    # It's not likely the user will have SSO admin permissions so commenting out this code for now until an alternative method is found
-                
-                
-                    # Check if VMware.vSphere.SsoAdmin module is installed
-                    if (-not (Get-Module -Name VMware.vSphere.SsoAdmin -ListAvailable -ErrorAction SilentlyContinue)) {
-                        Write-Error "VMware vSphere SSO Admin module is not installed. Please install it using: Install-Module -Name VMware.vSphere.SsoAdmin"
-                        exit 1
-                    }
-                    
-                    # Import module
-                    Import-Module VMware.vSphere.SsoAdmin -ErrorAction Stop
-                    
-                    # Connect to SSO Admin Server
-                    Connect-SsoAdminServer -Server $VIServer -User $VIUsername -Password $VIPassword -SkipCertificateCheck -WarningAction SilentlyContinue -ErrorAction Stop | Out-Null
-                
-                    Write-Host "user is not principal"
-                    Write-Host "Checking group memberships for $VIUsername"
-                
-                    write-host "domain: " $domain
-                    # Get all SSO groups
-                    $allGroups = Get-SsoGroup -domain $domain
-                        
-                    if (-not $allGroups) {
-                        Write-Warning "No SSO groups found or unable to retrieve SSO groups."
-                        return
-                    }
-                        
-                    Write-Host "Found $($allGroups.Count) SSO groups."
-                
-                    try {
-                        $userObject = Get-SsoPersonUser -Name $username -Domain $domain -ErrorAction Stop
-                        
-                        # Get groups where the user is a member
-                        $userGroups = $allGroups | Where-Object {
-                            try {
-                                $members = $_ | Get-SsoPersonUser -ErrorAction SilentlyContinue
-                                $members -and ($members.Name -contains $VIUsername)
-                            }
-                            catch {
-                                Write-Verbose "Error checking members for group $($_.Name): $_"
-                                $false
-                            }
-                        } | Select-Object @{Name="GroupName"; Expression={$_.Name}}, @{Name="GroupDomain"; Expression={$_.Domain}}
-                        
-                        # Display results
-                        if ($userGroups -and $userGroups.Count -gt 0) {
-                            Write-Host "`nUser $VIUsername is a member of the following SSO groups:" -ForegroundColor Green
-                            $userGroups | Format-Table -AutoSize
-                            
-                            # Print just the group names
-                            Write-Host "`nGroup names only:" -ForegroundColor Cyan
-                            $userGroups | ForEach-Object { $_.GroupName } | Sort-Object
-                            $groupName = $userGroups | ForEach-Object { $_.GroupName } | Sort-Object
-                        }
-                        else {
-                            Write-Host "`nUser $VIUsername is not a member of any SSO groups in vCenter." -ForegroundColor Yellow
-                        }
-                        
-                
-                        Check-UserPermissions -UserEmail "$groupName@$Domain"
-                    }
-                    catch {
-                        Write-Warning "User $groupName@$Domain not found: $_"
-                    }
-                    #>
                     return "vSphere: User $VIUsername does not have all the required vSphere API permissions"
                 }
             } catch {
@@ -2111,7 +2065,7 @@ if($setupOpsManager -eq 1) {
     My-Logger "Setting up Tanzu Operations Manager authentication..."
 
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-authentication", "--username", "$OpsManagerAdminUsername", "--password", "$OpsManagerAdminPassword", "--decryption-passphrase", "$OpsManagerDecryptionPassword")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2210,7 +2164,7 @@ properties-configuration:
 
     # Apply config
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-director", "--config", "$boshYaml")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Apply BOSH Director configuration failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2219,7 +2173,8 @@ properties-configuration:
 
     # Install BOSH Director
     $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes")
-    if($debug) {My-Logger "${OMCLI} $installArgs"}
+    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+    My-Logger "${OMCLI} $installArgs" -LogOnly
     & $OMCLI $installArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Installing BOSH Director failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2246,7 +2201,7 @@ if($setupTPCF -eq 1) {
     # Upload tile
     My-Logger "Uploading Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager (can take up to 15 minutes)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$TPCFTile", "-r", "3600")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2256,7 +2211,7 @@ if($setupTPCF -eq 1) {
     # Stage tile
     My-Logger "Adding Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$TPCFProductName", "--product-version", "$TPCFVersion")
-    if($debug) { My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2325,7 +2280,7 @@ resource-config:
 
     My-Logger "Applying Tanzu Platform for Cloud Foundry configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$TPCFyaml")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2336,7 +2291,8 @@ resource-config:
     if($InstallTanzuAI -eq 0) {
         My-Logger "Installing Tanzu Platform for Cloud Foundry (can take up to 60 minutes)..."
         $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes")
-        if($debug) {My-Logger "${OMCLI} $installArgs"}
+        if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+        My-Logger "${OMCLI} $installArgs" -LogOnly
         & $OMCLI $installArgs 2>&1 >> $verboseLogFile
         if ($LASTEXITCODE -ne 0) {
             My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2363,7 +2319,7 @@ if($setupPostgres -eq 1) {
     # Upload tile
     My-Logger "Uploading VMware Postgres tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$PostgresTile", "-r", "3600")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2373,7 +2329,7 @@ if($setupPostgres -eq 1) {
     # Stage tile
     My-Logger "Adding VMware Postgres tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$PostgresProductName", "--product-version", "$PostgresVersion")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2407,7 +2363,7 @@ network-properties:
 
     My-Logger "Applying VMware Postgres configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$Postgresyaml")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2416,7 +2372,8 @@ network-properties:
 
     My-Logger "Installing Tanzu Platform for Cloud Foundry and VMware Postgres (can take up to 75 minutes)..."
     $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes")
-    if($debug) {My-Logger "${OMCLI} $installArgs"}
+    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+    My-Logger "${OMCLI} $installArgs" -LogOnly
     & $OMCLI $installArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2443,7 +2400,7 @@ if($setupGenAI -eq 1) {
     # Upload tile
     My-Logger "Uploading Tanzu GenAI tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$GenAITile", "-r", "3600")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2453,7 +2410,7 @@ if($setupGenAI -eq 1) {
     # Stage tile
     My-Logger "Adding Tanzu GenAI tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$GenAIProductName", "--product-version", "$GenAIVersion")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2561,7 +2518,7 @@ network-properties:
 
     My-Logger "Applying Tanzu GenAI configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$GenAIyaml")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2570,7 +2527,8 @@ network-properties:
 
     My-Logger "Installing Tanzu GenAI (can take up to 40 minutes)..."
     $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$GenAIProductName")
-    if($debug) {My-Logger "${OMCLI} $installArgs"}
+    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+    My-Logger "${OMCLI} $installArgs" -LogOnly
     & $OMCLI $installArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2606,7 +2564,7 @@ if($setupHealthwatch -eq 1) {
     # Upload Healthwatch tile
     My-Logger "Uploading Healthwatch tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HealthwatchTile", "-r", "3600")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2616,7 +2574,7 @@ if($setupHealthwatch -eq 1) {
     # Upload Healthwatch Exporter tile
     My-Logger "Uploading Healthwatch Exporter tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HealthwatchExporterTile", "-r", "3600")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2626,7 +2584,7 @@ if($setupHealthwatch -eq 1) {
     # Stage Healthwatch tile
     My-Logger "Adding Healthwatch tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HealthwatchProductName", "--product-version", "$HealthwatchVersion")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2636,7 +2594,7 @@ if($setupHealthwatch -eq 1) {
     # Stage Healthwatch Exporter tile
     My-Logger "Adding Healthwatch Exporter tile to Tanzu Operations Manager..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HealthwatchExporterProductName", "--product-version", "$HealthwatchExporterVersion")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2668,7 +2626,7 @@ network-properties:
 
     My-Logger "Applying Healthwatch configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$HealthwatchExporteryaml")
-    if($debug) {My-Logger "${OMCLI} $configArgs"}
+    My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2677,7 +2635,8 @@ network-properties:
 
     My-Logger "Installing Healthwatch and Healthwatch Exporter (can take up to 35 minutes)..."
     $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$HealthwatchProductName", "--product-name", "$HealthwatchExporterProductName")
-    if($debug) {My-Logger "${OMCLI} $installArgs"}
+    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+    My-Logger "${OMCLI} $installArgs" -LogOnly
     & $OMCLI $installArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
@@ -2714,7 +2673,8 @@ foreach ($line in $credsOutput) {
 My-Logger "======================================================"
 My-Logger "                Next steps...                         "
 My-Logger "======================================================"
-My-Logger "Follow the next steps at https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer.git where you can learn how to push your first app! Or, alternatively..."
+My-Logger "Follow the next steps at the link below where you can learn how to push your first app! Or, alternatively..."
+My-Logger " - https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer"
 My-Logger " "
 My-Logger "Log into Tanzu Operations Manager"
 My-Logger "- Open a browser to https://$OpsManagerFQDN"
