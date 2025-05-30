@@ -104,7 +104,7 @@ $TPCFNetwork = $BOSHNetworkAssignment
 $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
 
 # Install Tanzu AI Solutions?
-$InstallTanzuAI = $false 
+$InstallTanzuAI = $true 
 
 # Tanzu AI Solutions config 
 $OllamaEmbedModel = "nomic-embed-text"
