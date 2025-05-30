@@ -530,7 +530,7 @@ function Ping-NetworkExcluding {
         
         # Ping the IP address
         try {
-            $pingResult = Test-Connection -ComputerName $ipAddress -Count 1 -Quiet -TimeoutSeconds 2
+            $pingResult = Test-Connection -ComputerName $ipAddress -Count 1 -Quiet -TimeoutSeconds 1
             
             $result = [PSCustomObject]@{
                 IPAddress = $ipAddress
