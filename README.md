@@ -10,7 +10,7 @@ The installer takes minimum set of parameters, validates them, and then performs
     - Compute: ~72 vCPU, although only uses approx 6 GHz
     - Memory: ~120 GB
     - Storage: ~450 GB
-  - User / service account with the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-0/tanzu-ops-manager/vsphere-vsphere-service-account.html)
+  - User / service account with at least the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-0/tanzu-ops-manager/vsphere-vsphere-service-account.html)
 
 **Networking**
   - IP addresses
@@ -293,15 +293,36 @@ Ask it for the current price of bitcoin
 ## Troubleshooting
 - An install log can be found where you run the script from with a file name of tanzu-genai-platform-installer.log. It contains verbose logging.
 
+- If you wish to just install upto a certain component, or skip a step, you can by changing the Installer Overrides flags in the Advanced Parameters section in the script
+```bash
+# Installer Overrides
+$confirmDeployment = 1
+$preCheck = 1
+$deployOpsManager = 1
+$setupOpsManager = 1
+$setupBOSHDirector = 1
+$setupTPCF = 1
+$setupPostgres = $InstallTanzuAI
+$setupGenAI = $InstallTanzuAI
+$setupHealthwatch = $InstallHealthwatch
+$ignoreWarnings = $false
+```
+
+- If the install of a component fails due to a permissions/privileges warning (verify in the installer log), you can override the warning by setting the ignoreWarnings flag to $true in the Advanced Parameters section of the script
+```bash
+# Installer Overrides
+$ignoreWarnings = $true
+```
+
 ## Validation
-Script validated against the following versions...
-- Tanzu Operations Manager: ops-manager-vsphere-3.0.40+LTS-T.ova
-- Tanzu Platform for Cloud Foundry small footprint: srt-10.0.5-build.2.pivotal
-- VMware Postgres: postgres-10.0.0-build.31.pivotal
-- Tanzu GenAI: genai-10.0.3.pivotal
-- Healthwatch: healthwatch-2.3.2-build.21.pivotal
-- Healthwatch Exporter: healthwatch-pas-exporter-2.3.2-build.21.pivotal
-- OM CLI: 7.15.1
-- Powershell: 7.5.1
-- PowerCLI: 13.3.0
-- vCenter: 8U3
+The script was validated against the following versions...
+- **Tanzu Operations Manager:** ops-manager-vsphere-3.0.40+LTS-T.ova
+- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.0.5-build.2.pivotal
+- **VMware Postgres:** postgres-10.0.0-build.31.pivotal
+- **Tanzu GenAI:** genai-10.0.3.pivotal
+- **Healthwatch:** healthwatch-2.3.2-build.21.pivotal
+- **Healthwatch Exporter:** healthwatch-pas-exporter-2.3.2-build.21.pivotal
+- **OM CLI:** 7.15.1
+- **Powershell:** 7.5.1
+- **PowerCLI:** 13.3.0
+- **vCenter:** 8U3
