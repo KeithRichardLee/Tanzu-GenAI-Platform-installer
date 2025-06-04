@@ -103,6 +103,12 @@ $TPCFAZ = $BOSHAZAssignment
 $TPCFNetwork = $BOSHNetworkAssignment
 $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
 
+# User provided cert (full chain) and private key for the apps and system wildcard domains for TPCF
+# see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
+$userProvidedCert = $false
+$CertPath = "/Users/Tanzu/certs/fullchain.pem"
+$KeyPath = "/Users/Tanzu/certs/privkey.pem"
+
 # Install Tanzu AI Solutions?
 $InstallTanzuAI = $true 
 
@@ -988,6 +994,208 @@ function Test-DNSLookup {
     }
 }
 
+function Test-Certificate {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CertPath,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Domain
+    )
+    
+    # Check if file exists
+    if (-not (Test-Path $CertPath)) {
+        My-Logger "Certificate file not found: $CertPath" -LogOnly -level Error
+        return $false
+    }
+    
+    try {
+        # Read the certificate file content
+        $certContent = Get-Content $CertPath -Raw
+        
+        # Split certificates in the chain
+        $certBlocks = @()
+        $matches = [regex]::Matches($certContent, '-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        
+        foreach ($match in $matches) {
+            $certBlocks += $match.Value
+        }
+        
+        if ($certBlocks.Count -eq 0) {
+            My-Logger "No certificates found in the file" -LogOnly -level Error
+            return $false
+        }
+        
+        My-Logger "Found $($certBlocks.Count) certificate(s) in chain" -LogOnly
+        
+        # Parse each certificate
+        $certificates = @()
+        for ($i = 0; $i -lt $certBlocks.Count; $i++) {
+            try {
+                # Create temporary file for individual certificate
+                $tempFile = [System.IO.Path]::GetTempFileName()
+                $certBlocks[$i] | Out-File -FilePath $tempFile -Encoding ASCII
+                
+                # Load certificate
+                $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($tempFile)
+                $certificates += $cert
+                
+                # Clean up temp file
+                Remove-Item $tempFile -Force
+            }
+            catch {
+                My-Logger "Failed to parse certificate $($i + 1): $_" -LogOnly -level Error
+                return $false
+            }
+        }
+        
+        # Validation results
+        $validationResults = @{
+            KeyTypeRSA = $false
+            CertOrder = $false
+            CommonNameValid = $false
+            SANValid = $false
+            Details = @()
+        }
+        
+        # 1. Validate key type is RSA (check first certificate - should be the leaf/wildcard cert)
+        $leafCert = $certificates[0]
+        if ($leafCert.PublicKey.Oid.FriendlyName -eq "RSA") {
+            $validationResults.KeyTypeRSA = $true
+            $validationResults.Details += "[PASS] Key type is RSA"
+        } else {
+            $validationResults.Details += "[FAIL] Key type is not RSA: $($leafCert.PublicKey.Oid.FriendlyName)"
+        }
+        
+        # 2. Validate certificate order (wildcard, intermediate(s), CA)
+        $orderValid = $true
+        $orderDetails = @()
+        
+        for ($i = 0; $i -lt $certificates.Count; $i++) {
+            $cert = $certificates[$i]
+            $isCA = ($cert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Basic Constraints" }) -ne $null
+            $basicConstraints = $cert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Basic Constraints" }
+            
+            if ($i -eq 0) {
+                # First cert should be wildcard (leaf certificate)
+                if ($cert.Subject -like "*CN=*$Domain*" -or $cert.Subject -like "*CN=*.*$Domain*") {
+                    $orderDetails += "Certificate 1: Leaf/Wildcard certificate"
+                } else {
+                    $orderValid = $false
+                    $orderDetails += "Certificate 1: Expected wildcard certificate, got: $($cert.Subject)"
+                }
+            } elseif ($i -eq $certificates.Count - 1) {
+                # Last cert should be CA
+                if ($basicConstraints -and $basicConstraints.CertificateAuthority) {
+                    $orderDetails += "Certificate $($i + 1): Root CA certificate"
+                } else {
+                    $orderValid = $false
+                    $orderDetails += "Certificate $($i + 1): Expected CA certificate, validation failed"
+                }
+            } else {
+                # Middle certs should be intermediate CAs
+                if ($basicConstraints -and $basicConstraints.CertificateAuthority) {
+                    $orderDetails += "Certificate $($i + 1): Intermediate CA certificate"
+                } else {
+                    $orderValid = $false
+                    $orderDetails += "Certificate $($i + 1): Expected intermediate CA certificate, validation failed"
+                }
+            }
+        }
+        
+        $validationResults.CertOrder = $orderValid
+        if ($orderValid) {
+            $validationResults.Details += "[PASS] Certificate order is correct"
+        } else {
+            $validationResults.Details += "[FAIL] Certificate order is incorrect"
+        }
+        $validationResults.Details += $orderDetails
+        
+        # 3. Validate Common Name contains domain
+        $commonName = ""
+        if ($leafCert.Subject -match "CN=([^,]+)") {
+            $commonName = $matches[1]
+        }
+        
+        if ($commonName -like "*$Domain*") {
+            $validationResults.CommonNameValid = $true
+            $validationResults.Details += "[PASS] Common Name contains domain: $commonName"
+        } else {
+            $validationResults.Details += "[FAIL] Common Name does not contain domain '$Domain': $commonName"
+        }
+        
+        # 4. Validate SAN entries
+        $requiredSANs = @(
+            "*.apps.$Domain",
+            "*.sys.$Domain",
+            "*.login.sys.$Domain",
+            "*.uaa.sys.$Domain"
+        )
+        
+        $sanExtension = $leafCert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Subject Alternative Name" }
+        $sanValid = $true
+        $foundSANs = @()
+        
+        if ($sanExtension) {
+            # Parse SAN extension
+            $sanString = $sanExtension.Format($false)
+            $sanEntries = $sanString -split ", " | ForEach-Object { $_.Replace("DNS Name=", "") }
+            $foundSANs = $sanEntries
+            
+            foreach ($requiredSAN in $requiredSANs) {
+                if ($sanEntries -contains $requiredSAN) {
+                    $validationResults.Details += "[PASS] Found required SAN: $requiredSAN"
+                } else {
+                    $sanValid = $false
+                    $validationResults.Details += "[FAIL] Missing required SAN: $requiredSAN"
+                }
+            }
+        } else {
+            $sanValid = $false
+            $validationResults.Details += "[FAIL] No Subject Alternative Name extension found"
+        }
+        
+        $validationResults.SANValid = $sanValid
+        
+        # Additional SAN information
+        if ($foundSANs.Count -gt 0) {
+            $validationResults.Details += "Found SAN entries: $($foundSANs -join ', ')"
+        }
+        
+        # Overall validation result
+        $overallValid = $validationResults.KeyTypeRSA -and 
+                       $validationResults.CertOrder -and 
+                       $validationResults.CommonNameValid -and 
+                       $validationResults.SANValid
+        
+        # Output results
+        My-Logger "=== Certificate Validation Results ===" -LogOnly
+        foreach ($detail in $validationResults.Details) {
+            if ($detail.StartsWith("[PASS]")) {
+                My-Logger $detail -LogOnly
+            } elseif ($detail.StartsWith("[FAIL]")) {
+                My-Logger $detail -LogOnly
+            } else {
+                My-Logger $detail -LogOnly
+            }
+        }
+        
+        My-Logger "=== Summary ===" -LogOnly
+        My-Logger "RSA Key Type: $(if ($validationResults.KeyTypeRSA) { 'PASS' } else { 'FAIL' })" -LogOnly
+        My-Logger "Certificate Order: $(if ($validationResults.CertOrder) { 'PASS' } else { 'FAIL' })" -LogOnly
+        My-Logger "Common Name: $(if ($validationResults.CommonNameValid) { 'PASS' } else { 'FAIL' })" -LogOnly
+        My-Logger "SAN Validation: $(if ($validationResults.SANValid) { 'PASS' } else { 'FAIL' })" -LogOnly
+        My-Logger "Overall Result: $(if ($overallValid) { 'PASS' } else { 'FAIL' })" -LogOnly
+        
+        return $overallValid
+        
+    }
+    catch {
+        My-Logger "Error validating certificate: $_" -LogOnly -level Error
+        return $false
+    }
+}
+
 function Get-ClusterFreeResources {
     param (
         [Parameter(Mandatory=$true)]
@@ -1284,9 +1492,16 @@ if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor White "apps.$TPCFDomain"
     Write-Host -NoNewline -ForegroundColor Green "GoRouter IP: "
     Write-Host -ForegroundColor White $TPCFGoRouter
-    Write-Host -NoNewline -ForegroundColor Green "GoRouter wildcard cert SAN: "
-    $domainlist = "*.apps.$TPCFDomain,*.login.sys.$TPCFDomain,*.uaa.sys.$TPCFDomain,*.sys.$TPCFDomain,*.$TPCFDomain"    
-    Write-Host -ForegroundColor White $domainlist
+    if ($userProvidedCert) {
+        Write-Host -NoNewline -ForegroundColor Green "GoRouter wildcard cert path: "
+        Write-Host -ForegroundColor White $CertPath
+        Write-Host -NoNewline -ForegroundColor Green "GoRouter wildcard private key path: "
+        Write-Host -ForegroundColor White $KeyPath
+    } else {
+        Write-Host -NoNewline -ForegroundColor Green "GoRouter wildcard cert SAN: "
+        $domainlist = "*.apps.$TPCFDomain,*.login.sys.$TPCFDomain,*.uaa.sys.$TPCFDomain,*.sys.$TPCFDomain,*.$TPCFDomain"    
+        Write-Host -ForegroundColor White $domainlist
+    }
 
     if ($InstallTanzuAI) {
         Write-Host -ForegroundColor Yellow "`n---- Tanzu AI Solutions Configuration ----"
@@ -1643,6 +1858,37 @@ if($preCheck -eq 1) {
             }
         } catch {
             return "Cannot reach ollama.com. Error: $($_.Exception.Message)"
+        }
+    }
+
+    ########################################
+    ########################################
+    if ($userProvidedCert){
+        # Verify cert file exists
+        My-Logger "Validating if cert file exists at $CertPath" -LogOnly
+        Run-Test -TestName "Certs: cert file exists" -TestCode {
+            if (Test-Path $CertPath) { return $true } else { return "Files: Unable to find $CertPath" }
+        }
+    
+        # Verify private key file exists
+        My-Logger "Validating if private key file exists at $KeyPath" -LogOnly
+        Run-Test -TestName "Certs: private key file exists" -TestCode {
+            if (Test-Path $KeyPath) { return $true } else { return "Files: Unable to find $KeyPath" }
+        }
+        
+        # Verify cert is valid
+        My-Logger "Validating if apps and system wildcard certificate is valid" -LogOnly
+        Run-Test -TestName "Certs: cert is valid" -TestCode {
+            try {
+                $certResult = Test-Certificate -CertPath $CertPath -Domain $TPCFDomain
+                if ($certResult) {
+                    return $true
+                } else {
+                    return "Certs: apps and system wildcard certificate is not valid"
+                }
+            } catch {
+                return "Cannot validate certificate. Error: $($_.Exception.Message)"
+            }
         }
     }
 
@@ -2218,15 +2464,22 @@ if($setupTPCF -eq 1) {
         exit
     }
 
-    # Generate wildcard cert and key
-    $domainlist = "*.apps.$TPCFDomain,*.login.sys.$TPCFDomain,*.uaa.sys.$TPCFDomain,*.sys.$TPCFDomain,*.$TPCFDomain"
-    $TPCFcert_and_key = & "$OMCLI" -k -t $OpsManagerFQDN -u $OpsManagerAdminUsername -p $OpsManagerAdminPassword generate-certificate -d $domainlist
+    # Check if to use user provided certs or auto generate them
+    if ($userProvidedCert){
+        # read in user provided cert chain and key
+        $TPCFcert = (Get-Content -Path $CertPath) -join "\n"
+        $TPCFkey = (Get-Content -Path $KeyPath) -join "\n"
+    } else {
+        # Generate wildcard cert and key
+        $domainlist = "*.apps.$TPCFDomain,*.login.sys.$TPCFDomain,*.uaa.sys.$TPCFDomain,*.sys.$TPCFDomain,*.$TPCFDomain"
+        $TPCFcert_and_key = & "$OMCLI" -k -t $OpsManagerFQDN -u $OpsManagerAdminUsername -p $OpsManagerAdminPassword generate-certificate -d $domainlist
 
-    $pattern = "-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----\\n"
-    $TPCFcert = [regex]::Match($TPCFcert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        $pattern = "-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----\\n"
+        $TPCFcert = [regex]::Match($TPCFcert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
 
-    $pattern = "-----BEGIN RSA PRIVATE KEY-----.*?-----END RSA PRIVATE KEY-----\\n"
-    $TPCFkey = [regex]::Match($TPCFcert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        $pattern = "-----BEGIN RSA PRIVATE KEY-----.*?-----END RSA PRIVATE KEY-----\\n"
+        $TPCFkey = [regex]::Match($TPCFcert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    }
 
     # Create TPCF config yaml
     $TPCFPayload = @"
