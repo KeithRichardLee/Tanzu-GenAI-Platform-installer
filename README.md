@@ -28,6 +28,9 @@ The installer takes minimum set of parameters, validates them, and then performs
 
   - Firewall
     - Ability to reach ollama.com so Tanzu Platform can download AI models (Note: Airgapped is supported but not covered in this guide & script at present. Please see [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform-services/genai-on-tanzu-platform-for-cloud-foundry/10-0/ai-cf/tutorials-offline-model-support.html) for offline model support)
+   
+  - Certificates (optional)
+    - By default, the installer creates a self-signed cert for TLS termination at the GoRouter. A user can provide their own cert if wished. See [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html) for cert requirements. 
 
 **Workstation/jump-host**
 - [Powershell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell) or later installed
@@ -94,6 +97,35 @@ $InstallHealthwatch = $true
 $HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 ```
+
+## (Optional) Advanced Config
+There are several advanced parameters which can be changed if wished, for example...
+
+Number of compute instances
+```bash
+$TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
+```
+
+User provided cert for GoRouter. With $userProvidedCert set to false (default) the installer creates a self-signed cert
+```bash
+# User provided cert (full chain) and private key for the apps and system wildcard domains
+# see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
+$userProvidedCert = $false
+$CertPath = "/Users/Tanzu/certs/fullchain.pem"
+$KeyPath = "/Users/Tanzu/certs/privkey.pem"
+```
+
+AI models
+```bash
+# Tanzu AI Solutions config 
+$OllamaEmbedModel = "nomic-embed-text"
+$OllamaChatModel = "gemma2:2b"
+
+# Deploy a model with chat and tools capabilities instead of just chat?  note; a vm will be created with 16 vCPU and 32 GB mem to run the model
+$ToolsModel = $true
+$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
+```
+
 
 ## Run the script
 - Open a powershell console eg `pwsh`
