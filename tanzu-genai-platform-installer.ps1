@@ -46,7 +46,7 @@ $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system an
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
 
 # Install Healthwatch (observability)?
-$InstallHealthwatch = $true
+$InstallHealthwatch = $false
 $HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 
@@ -106,8 +106,8 @@ $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many lar
 # User provided cert (full chain) and private key for the apps and system wildcard domains for TPCF
 # see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
 $userProvidedCert = $false
-$CertPath = "/Users/Tanzu/certs/fullchain.pem"
-$KeyPath = "/Users/Tanzu/certs/privkey.pem"
+$CertPath = "/Users/Tanzu/certs/TP/fullchain.pem"
+$KeyPath = "/Users/Tanzu/certs/TP/privkey.pem"
 
 # Install Tanzu AI Solutions?
 $InstallTanzuAI = $true 
@@ -119,6 +119,15 @@ $OllamaChatModel = "gemma2:2b"
 # Deploy a model with chat and tools capabilities instead of just chat?  note; a vm will be created with 16 vCPU and 32 GB mem to run the model
 $ToolsModel = $true
 $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
+
+# Tanzu Hub
+$InstallHub = $false
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0-stable.0.pivotal"
+$StemcellPath = "/Users/Tanzu/Downloads/bosh-stemcell-1.824-vsphere-esxi-ubuntu-jammy-go_agent.tgz"
+$HubFQDN = "FILL-ME-IN"
+$UserProvidedHubCert = $false
+$HubCertPath = "/Users/Tanzu/certs/Hub/fullchain.pem"
+$HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
 
 # Validation parameters
 if ($InstallHealthwatch){
@@ -133,7 +142,6 @@ else {
     $RequiredCpuGHz = 5
     $RequiredMemoryGB = 100
 }
-
 
 # Required vSphere API privileges at vCenter level for Tanzu Operations Manager
 $requiredVcenterPrivileges = @(
@@ -243,6 +251,7 @@ $setupTPCF = 1
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
 $setupHealthwatch = $InstallHealthwatch
+$setupHub = InstallHub
 $ignoreWarnings = $false
 
 ############################################################################################
@@ -2670,9 +2679,162 @@ if($setupGenAI -eq 1) {
         exit
     }
 
-    # Create GenAI config yaml
-    if($ToolsModel -eq 0) {
-        $GenAIPayload = @"
+    # Check if tile is newer than 10.0.3 as the payload spec changed in 10.0.4 and newer
+    if ([System.Version]($GenAIVersion -split '-')[0] -gt [System.Version]"10.0.3") {
+        # Create GenAI config yaml for 10.0.4 and newer
+        if($ToolsModel -eq 0) {
+            $GenAIPayload = @"
+---
+product-name: genai
+product-properties:
+  .controller.plans:
+    value:
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: A high-performing open embedding model
+      model_handles: $OllamaEmbedModel
+      name: embedding-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: Models with chat capabilities
+      model_handles: $OllamaChatModel
+      name: chat-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+  .errands.ollama_models:
+    value:
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaEmbedModel
+      model_capabilities:
+      - embedding
+      model_name: $OllamaEmbedModel
+      vm_type: cpu
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaChatModel
+      model_capabilities:
+      - chat
+      model_name: $OllamaChatModel
+      vm_type: cpu
+  .properties.database_source:
+    selected_option: service_broker
+    value: service_broker
+  .properties.database_source.service_broker.name:
+    value: postgres
+  .properties.database_source.service_broker.plan_name:
+    value: on-demand-postgres-db
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+        } else {
+                $GenAIPayload = @"
+---
+product-name: genai
+product-properties:
+  .controller.plans:
+    value:
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: A high-performing open embedding model
+      model_handles: $OllamaEmbedModel
+      name: embedding-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: Models with chat and tool capabilities
+      model_handles: $OllamaChatToolsModel
+      name: chat-and-tools-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+  .errands.ollama_models:
+    value:
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaEmbedModel
+      instances: 1
+      model_capabilities:
+      - embedding
+      model_name: $OllamaEmbedModel
+      ollama_context_length: 2048
+      ollama_flash_attention: false
+      ollama_keep_alive: 60m
+      ollama_kv_cache_type: f16
+      ollama_load_timeout: 5m
+      ollama_num_parallel: 0
+      vm_type: cpu
+      wire_format: openai
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaChatToolsModel
+      instances: 1
+      model_aliases: null
+      model_capabilities:
+      - chat
+      - tools
+      model_name: $OllamaChatToolsModel
+      ollama_context_length: 131072
+      ollama_flash_attention: true
+      ollama_keep_alive: "-1"
+      ollama_kv_cache_type: q4_0
+      ollama_load_timeout: 5m
+      ollama_num_parallel: 1
+      vm_type: cpu-2xlarge
+      wire_format: openai
+  .errands.vsphere_vm_types:
+    value:
+    - cpu: 8
+      ephemeral_disk: 65536
+      name: cpu
+      processing_technology: cpu
+      ram: 32768
+      root_disk: 25
+    - cpu: 16
+      ephemeral_disk: 65536
+      name: cpu-2xlarge
+      processing_technology: cpu
+      ram: 32768
+      root_disk: 25
+  .properties.database_source:
+    selected_option: service_broker
+    value: service_broker
+  .properties.database_source.service_broker.name:
+    value: postgres
+  .properties.database_source.service_broker.plan_name:
+    value: on-demand-postgres-db
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+        }
+    } else {
+        # Create GenAI config yaml for 10.0.3
+        if($ToolsModel -eq 0) {
+            $GenAIPayload = @"
 ---
 product-name: genai
 product-properties:
@@ -2706,7 +2868,7 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
-    } else {
+        } else {
             $GenAIPayload = @"
 ---
 product-name: genai
@@ -2764,6 +2926,7 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
+        }
     }
 
     $GenAIyaml = "genai-config.yaml"
@@ -2897,6 +3060,146 @@ network-properties:
     }
 
     My-Logger "Healthwatch and Healthwatch Exporter successfully installed"
+}
+
+if($setupHub -eq 1) {
+
+    # Verify if Hub is already installed
+    $productToCheck = "hub"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Tanzu Hub tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $HubProductName = & "$OMCLI" product-metadata --product-path $HubTile --product-name
+    $HubVersion = & "$OMCLI" product-metadata --product-path $HubTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Tanzu Hub tile to Tanzu Operations Manager (can take up to 15 minutes)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HubTile", "-r", "3600")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Tanzu Hub tile to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HubProductName", "--product-version", "$HubVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Check if to use user provided cert or auto generate a self-signed cert
+    if ($UserProvidedHubCert){
+        # read in user provided cert chain and key
+        $HubCert = (Get-Content -Path $HubCertPath) -join "\n"
+        $HubKey = (Get-Content -Path $HubKeyPath) -join "\n"
+    } else {
+        # Generate a self-signed cert and key for Hub
+        $HubCert_and_key = & "$OMCLI" -k -t $OpsManagerFQDN -u $OpsManagerAdminUsername -p $OpsManagerAdminPassword generate-certificate -d $HubFQDN
+    
+        $pattern = "-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----\\n"
+        $HubCert = [regex]::Match($HubCert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    
+        $pattern = "-----BEGIN RSA PRIVATE KEY-----.*?-----END RSA PRIVATE KEY-----\\n"
+        $HubKey = [regex]::Match($HubCert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    }
+
+    # Create Hub config yaml
+    $HubPayload = @"
+---
+product-name: hub
+product-properties:
+  .properties.dns_zone:
+    value: $hubFQDN
+  .properties.ingress_tls:
+    value:
+      cert_pem: "$HubCert"
+      private_key_pem: "$HubKey"
+  .properties.idp:
+    selected_option: idp_internal
+    value: Internal user store
+  .properties.tia:
+    selected_option: none
+    value: none
+  .properties.trivy_allow_insecure_connections:
+    value: true
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+resource-config:
+  blobstore:
+    instances: automatic
+  clickhouse-logs:
+    instances: automatic
+  clickhouse-metrics:
+    instances: automatic
+  control:
+    instances: automatic
+  kafka:
+    instances: automatic
+  postgres:
+    instances: automatic
+  prometheus:
+    instances: automatic
+  registry:
+    instances: automatic
+  system:
+    instances: automatic
+"@
+
+    $Hubyaml = "hub-config.yaml"
+    $HubPayload > $Hubyaml
+
+    My-Logger "Applying Tanzu Hub configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$Hubyaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Uploading stemcell to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-stemcell", "--stemcell", "$StemcellPath", "--floating", "false", "-r", "3600")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Assigning stemcell to Tanzu Hub..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "assign-stemcell", "--product", "$HubProductName")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Installing Tanzu Hub (can take up to 75 minutes)..."
+    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$HubProductName")
+    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+    My-Logger "${OMCLI} $installArgs" -LogOnly
+    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Tanzu Hub successfully installed" 
 }
 
 $EndTime = Get-Date
