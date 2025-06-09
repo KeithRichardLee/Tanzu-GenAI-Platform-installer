@@ -251,7 +251,7 @@ $setupTPCF = 1
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
 $setupHealthwatch = $InstallHealthwatch
-$setupHub = InstallHub
+$setupHub = $InstallHub
 $ignoreWarnings = $false
 
 ############################################################################################
