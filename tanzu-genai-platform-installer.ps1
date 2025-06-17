@@ -15,10 +15,10 @@
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.0.40+LTS-T.ova"  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.0.5-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.0.0-build.31.pivotal"      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.0.3.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.0.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.0-build.7.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.0-build.42.pivotal"      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.0.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -44,6 +44,7 @@ $OpsManagerFQDN = "FILL-ME-IN"
 $BOSHNetworkReservedRange = "FILL-ME-IN"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox eg 10.0.70.0-10.0.70.2,10.0.70.10
 $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
+$TPCFLicenseKey = ""                      #License key required for 10.2 and later
 
 # Install Healthwatch (observability)?
 $InstallHealthwatch = $false
@@ -97,17 +98,20 @@ $BOSHNetwork = @{
 $BOSHAZAssignment = "az1"
 $BOSHNetworkAssignment = "tp-network"
 
+##############################
+
 # Tanzu Platform for Cloud Foundry (TPCF) configuration
 $TPCFCredHubSecret = 'VMware1!VMware1!VMware1!' # must be 20 or more characters
 $TPCFAZ = $BOSHAZAssignment
 $TPCFNetwork = $BOSHNetworkAssignment
 $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
 
-# User provided cert (full chain) and private key for the apps and system wildcard domains for TPCF
-# see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
+# User provided cert (full chain) and private key for the apps and system wildcard domains for TPCF. See https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
 $userProvidedCert = $false
 $CertPath = "/Users/Tanzu/certs/TP/fullchain.pem"
 $KeyPath = "/Users/Tanzu/certs/TP/privkey.pem"
+
+##############################
 
 # Install Tanzu AI Solutions?
 $InstallTanzuAI = $true 
@@ -120,14 +124,17 @@ $OllamaChatModel = "gemma2:2b"
 $ToolsModel = $true
 $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 
+##############################
+
 # Tanzu Hub
 $InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0-stable.0.pivotal"
-$StemcellPath = "/Users/Tanzu/Downloads/bosh-stemcell-1.824-vsphere-esxi-ubuntu-jammy-go_agent.tgz"
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"
 $HubFQDN = "FILL-ME-IN"
 $UserProvidedHubCert = $false
 $HubCertPath = "/Users/Tanzu/certs/Hub/fullchain.pem"
 $HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
+
+##############################
 
 # Validation parameters
 if ($InstallHealthwatch){
@@ -142,6 +149,8 @@ else {
     $RequiredCpuGHz = 5
     $RequiredMemoryGB = 100
 }
+
+##############################
 
 # Required vSphere API privileges at vCenter level for Tanzu Operations Manager
 $requiredVcenterPrivileges = @(
@@ -238,6 +247,8 @@ $requiredDatacenterPrivileges = @(
     "VApp.Import",
     "VApp.ApplicationConfig"
 )
+
+##############################
 
 $verboseLogFile = "tanzu-genai-platform-installer.log"
 
@@ -2490,6 +2501,16 @@ if($setupTPCF -eq 1) {
         $TPCFkey = [regex]::Match($TPCFcert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
     }
 
+    # Build the license key section conditionally
+    $licenseKeySection = ""
+    if ($TPCFLicenseKey) {
+        $licenseKeySection = @"
+
+  .properties.license_key:
+    value: $TPCFLicenseKey
+"@
+    }
+    
     # Create TPCF config yaml
     $TPCFPayload = @"
 ---
@@ -2527,7 +2548,7 @@ product-properties:
     - name: Internal-encryption-provider-key
       key:
         secret: $TPCFCredHubSecret
-      primary: true
+      primary: true$licenseKeySection
 resource-config:
   backup_restore:
     instances: 0
@@ -3118,14 +3139,14 @@ if($setupHub -eq 1) {
 product-name: hub
 product-properties:
   .properties.dns_zone:
-    value: $hubFQDN
+    value: $HubFQDN
   .properties.ingress_tls:
     value:
       cert_pem: "$HubCert"
       private_key_pem: "$HubKey"
   .properties.idp:
     selected_option: idp_internal
-    value: Internal user store
+    value: idp_internal
   .properties.tia:
     selected_option: none
     value: none
@@ -3138,25 +3159,6 @@ network-properties:
   - name: $BOSHAZAssignment
   singleton_availability_zone:
     name: $BOSHAZAssignment
-resource-config:
-  blobstore:
-    instances: automatic
-  clickhouse-logs:
-    instances: automatic
-  clickhouse-metrics:
-    instances: automatic
-  control:
-    instances: automatic
-  kafka:
-    instances: automatic
-  postgres:
-    instances: automatic
-  prometheus:
-    instances: automatic
-  registry:
-    instances: automatic
-  system:
-    instances: automatic
 "@
 
     $Hubyaml = "hub-config.yaml"
@@ -3164,24 +3166,6 @@ resource-config:
 
     My-Logger "Applying Tanzu Hub configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$Hubyaml")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    My-Logger "Uploading stemcell to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-stemcell", "--stemcell", "$StemcellPath", "--floating", "false", "-r", "3600")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    My-Logger "Assigning stemcell to Tanzu Hub..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "assign-stemcell", "--product", "$HubProductName")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
@@ -3246,3 +3230,9 @@ My-Logger "Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bi
 My-Logger "- cf login -a https://api.sys.$TPCFDomain -u $OpsManagerAdminUsername -p $uaaAdminPassword --skip-ssl-validation"
 My-Logger " "
 My-Logger "  Note; you can download cf cli from https://apps.sys.$TPCFDomain/tools or https://github.com/cloudfoundry/cli/releases"
+
+If ($InstallHub){
+    My-Logger " "
+    My-Logger "Tanzu Hub"
+    My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN"
+}
