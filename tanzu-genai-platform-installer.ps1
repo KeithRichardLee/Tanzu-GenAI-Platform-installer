@@ -1609,6 +1609,14 @@ if($preCheck -eq 1) {
         }
     }
 
+    # Verify if Tanzu Hub tile file exists
+    if ($InstallHub -eq $true) {
+        My-Logger "Validating if Tanzu Hub tile file exists at $HubTile" -LogOnly
+        Run-Test -TestName "Files: Tanzu Hub tile file exists" -TestCode {
+            if (Test-Path $HubTile) { return $true } else { return "Files: Unable to find $HubTile" }
+        }
+    }
+
     # Verify target network connectivity
     My-Logger "Validating Gateway $VMGateway connectivity" -LogOnly
     Run-Test -TestName "Network: Gateway connectivity" -TestCode {
@@ -1881,8 +1889,6 @@ if($preCheck -eq 1) {
         }
     }
 
-    ########################################
-    ########################################
     if ($userProvidedCert){
         # Verify cert file exists
         My-Logger "Validating if cert file exists at $CertPath" -LogOnly
@@ -2255,6 +2261,30 @@ if($preCheck -eq 1) {
     My-Logger "Validating if ssh-keygen is installed" -LogOnly
     Run-Test -TestName "ssh-keygen is installed" -TestCode {
         if (Get-Command ssh-keygen -ErrorAction Stop) {return $true} else {return "ssh-keygen not installed"}
+    }
+
+    # Check if TP License Key is valid if TPCF 10.2 or later is being installed
+    $TPCFFilename = Split-Path $TPCFTile -Leaf
+    if ($TPCFFilename -like "*10.2*") {
+        My-Logger "Validating if TP Licence Key is of valid format" -LogOnly
+        Run-Test -TestName "License Key is of valid format" -TestCode {
+            # Check if license key is specified (not null/empty)
+            if ([string]::IsNullOrWhiteSpace($TPCFLicenseKey)) {
+                My-Logger "License Key field is empty" -LogOnly -Level Error
+                return "License Key field is empty"
+            }
+            
+            # Validate license key format (xxxxx-xxxxx-xxxxx-xxxxx-xxxxx)
+            $licensePattern = "^[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$"
+            
+            if ($TPCFLicenseKey -match $licensePattern) {
+                My-Logger "License key format is valid" -LogOnly
+                return $true
+            } else {
+                My-Logger "License Key format is invalid. Expected format: xxxxx-xxxxx-xxxxx-xxxxx-xxxxx" -LogOnly -Level Error
+                return "License Key format is invalid"
+            }
+        }
     }
 
     My-Logger "Input validation complete" 
