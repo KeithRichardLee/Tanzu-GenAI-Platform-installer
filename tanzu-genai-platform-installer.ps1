@@ -3331,5 +3331,5 @@ My-Logger "  Note; you can download cf cli from https://apps.sys.$TPCFDomain/too
 If ($InstallHub){
     My-Logger " "
     My-Logger "Tanzu Hub"
-    My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN"
+    My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN here https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/install-install.html"
 }
