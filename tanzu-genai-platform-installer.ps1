@@ -128,7 +128,7 @@ $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 
 # Tanzu Hub
 $InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN = "FILL-ME-IN"
 $UserProvidedHubCert = $false
 $HubCertPath = "/Users/Tanzu/certs/Hub/fullchain.pem"
@@ -136,18 +136,38 @@ $HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
 
 ##############################
 
-# Validation parameters
-if ($InstallHealthwatch){
-    $RequiredIPs = 23 # 24 minus Ops Man
-    $RequiredStorageGB = 475
-    $RequiredCpuGHz = 6
-    $RequiredMemoryGB = 120
-}
-else {
-    $RequiredIPs = 11 # 12 minus Ops Man
-    $RequiredStorageGB = 400
-    $RequiredCpuGHz = 5
-    $RequiredMemoryGB = 100
+# Product resource requirements
+$ProductRequirements = @{
+    "OpsMan" = @{
+        IP = 2
+        CPUGHz = 1
+        MemoryGB = 16
+        StorageGB = 40
+    }
+    "TPCF" = @{
+        IP = 5
+        CPUGHz = 2
+        MemoryGB = 42
+        StorageGB = 200
+    }
+    "TanzuAI" = @{
+        IP = 6
+        CPUGHz = 2
+        MemoryGB = 26
+        StorageGB = 140
+    }
+    "HealthWatch" = @{
+        IP = 11
+        CPUGHz = 1
+        MemoryGB = 16
+        StorageGB = 100
+    }
+    "Hub" = @{
+        IP = 13
+        CPUGHz = 10
+        MemoryGB = 100
+        StorageGB = 400
+    }
 }
 
 ##############################
@@ -1216,6 +1236,50 @@ function Test-Certificate {
     }
 }
 
+function Calculate-TotalRequirements {
+    param(
+        [hashtable]$ProductRequirements
+    )
+
+    My-Logger "Calculating total install requirements to be used in validation tests" -LogOnly
+
+    # Define which products to install
+    $ProductsToInstall = @{
+        "OpsMan" = $true
+        "TPCF" = $true
+        "TanzuAI" = $InstallTanzuAI
+        "HealthWatch" = $InstallHealthwatch
+        "Hub" = $InstallHub
+    }
+
+    # Initialize totals
+    $TotalRequirements = @{
+        IP = 0
+        CPUGHz = 0
+        MemoryGB = 0
+        StorageGB = 0
+    }
+
+    # Calculate total requirements
+    foreach ($product in $ProductsToInstall.Keys) {
+        if ($ProductsToInstall[$product] -and $ProductRequirements.ContainsKey($product)) {
+            $TotalRequirements.IP += $ProductRequirements[$product].IP
+            $TotalRequirements.CPUGHz += $ProductRequirements[$product].CPUGHz
+            $TotalRequirements.MemoryGB += $ProductRequirements[$product].MemoryGB
+            $TotalRequirements.StorageGB += $ProductRequirements[$product].StorageGB
+        }
+    }
+
+    My-Logger "Total Requirements Summary:" -LogOnly
+    My-Logger "===========================" -LogOnly
+    My-Logger "Total IP addresses needed: $($TotalRequirements.IP)" -LogOnly
+    My-Logger "Total CPU needed: $($TotalRequirements.CPUGHz) GHz" -LogOnly
+    My-Logger "Total Memory needed: $($TotalRequirements.MemoryGB) GB" -LogOnly
+    My-Logger "Total Storage needed: $($TotalRequirements.StorageGB) GB" -LogOnly
+
+    return $TotalRequirements
+}
+
 function Get-ClusterFreeResources {
     param (
         [Parameter(Mandatory=$true)]
@@ -1559,6 +1623,9 @@ if($preCheck -eq 1) {
     # Create an array to track the order of tests
     $TestOrder = @()
 
+    #Calculate total resource requirments to be used in several tests 
+    $Requirements = Calculate-TotalRequirements -ProductRequirements $ProductRequirements
+
     # Verify if OM CLI exists
     My-Logger "Validating if OM CLI exists at $OMCLI" -LogOnly
     Run-Test -TestName "Files: OM CLI exists" -TestCode {
@@ -1709,10 +1776,10 @@ if($preCheck -eq 1) {
     }
 
     # verify have enough IPs available
-    My-Logger "Validating if have at least $RequiredIPs IPs available" -LogOnly
+    My-Logger "Validating if have at least $Requirements.IP IPs available" -LogOnly
     Run-Test -TestName "Network: Network capacity" -TestCode {
         try {
-            $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $RequiredIPs
+            $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $Requirements.IP
             if ($capacityResult -eq $true) {
                 return $true
             } else {
@@ -2071,7 +2138,7 @@ if($preCheck -eq 1) {
         try {
             if ($script:viConnectionObject) {
                 $clusterStats = Get-ClusterFreeResources -ClusterName $VMCluster
-                if ($clusterStats.FreeCpuGhz -ge $RequiredCpuGHz) {
+                if ($clusterStats.FreeCpuGhz -ge $Requirements.CPUGHz) {
                     return $true
                 } else {
                     return "vSphere: Not enough CPU resources available"
@@ -2090,7 +2157,7 @@ if($preCheck -eq 1) {
         try {
             if ($script:viConnectionObject) {
                 $clusterStats = Get-ClusterFreeResources -ClusterName $VMCluster
-                if ($clusterStats.FreeMemoryGB -ge $RequiredMemoryGB) {
+                if ($clusterStats.FreeMemoryGB -ge $Requirements.MemoryGB) {
                     return $true
                 } else {
                     return "vSphere: Not enough memory resources available"
@@ -2109,7 +2176,7 @@ if($preCheck -eq 1) {
         try {
             if ($script:viConnectionObject) {
                 $FreeSpaceGB = (Get-Datastore -Name $VMDatastore -ErrorAction Stop).FreeSpaceGB
-                if ($FreeSpaceGB -ge $RequiredStorageGB) {
+                if ($FreeSpaceGB -ge $Requirements.StorageGB) {
                     return $true
                 } else {
                     return "vSphere: Not enough datastore storage available"
