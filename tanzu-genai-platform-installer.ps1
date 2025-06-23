@@ -6,9 +6,10 @@
 # - Configure authentication for VMware Tanzu Operations Manager
 # - Configure and deploy BOSH Director
 # - Configure and deploy VMware Tanzu Platform for Cloud Foundry
-# - Configure and deploy VMware Postgres
+# - Configure and deploy VMware Tanzu Postgres
 # - Configure and deploy VMware Tanzu GenAI
-# - Configure and deploy Healthwatch & Healthwatch Exporter
+# - Configure and deploy VMware Tanzu Healthwatch & Healthwatch Exporter (optional)
+# - Configure and deploy VMware Tanzu Hub (optional)
 #
 ############################################################################################
 
@@ -46,10 +47,15 @@ $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system an
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
 $TPCFLicenseKey = ""                      #License key required for 10.2 and later
 
-# Install Healthwatch (observability)?
+### Install Healthwatch (observability)?
 $InstallHealthwatch = $false
 $HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+
+### Install Tanzu Hub (global control plane)?
+$InstallHub = $false
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubFQDN = "FILL-ME-IN"
 
 ### end of required inputs
 
@@ -127,9 +133,6 @@ $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 ##############################
 
 # Tanzu Hub
-$InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
-$HubFQDN = "FILL-ME-IN"
 $UserProvidedHubCert = $false
 $HubCertPath = "/Users/Tanzu/certs/Hub/fullchain.pem"
 $HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
