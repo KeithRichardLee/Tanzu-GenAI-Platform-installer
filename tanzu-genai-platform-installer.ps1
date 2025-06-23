@@ -6,19 +6,20 @@
 # - Configure authentication for VMware Tanzu Operations Manager
 # - Configure and deploy BOSH Director
 # - Configure and deploy VMware Tanzu Platform for Cloud Foundry
-# - Configure and deploy VMware Postgres
+# - Configure and deploy VMware Tanzu Postgres
 # - Configure and deploy VMware Tanzu GenAI
-# - Configure and deploy Healthwatch & Healthwatch Exporter
+# - Configure and deploy VMware Tanzu Healthwatch & Healthwatch Exporter (optional)
+# - Configure and deploy VMware Tanzu Hub (optional)
 #
 ############################################################################################
 
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.0.40+LTS-T.ova"  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.0.5-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.0.0-build.31.pivotal"      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.0.3.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.0.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.0-build.7.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.0-build.42.pivotal"      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.0.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -44,11 +45,17 @@ $OpsManagerFQDN = "FILL-ME-IN"
 $BOSHNetworkReservedRange = "FILL-ME-IN"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox eg 10.0.70.0-10.0.70.2,10.0.70.10
 $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
+$TPCFLicenseKey = ""                      #License key required for 10.2 and later
 
-# Install Healthwatch (observability)?
-$InstallHealthwatch = $true
+### Install Healthwatch (observability)?
+$InstallHealthwatch = $false
 $HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+
+### Install Tanzu Hub (global control plane)?
+$InstallHub = $false
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubFQDN = "FILL-ME-IN"
 
 ### end of required inputs
 
@@ -97,17 +104,20 @@ $BOSHNetwork = @{
 $BOSHAZAssignment = "az1"
 $BOSHNetworkAssignment = "tp-network"
 
+##############################
+
 # Tanzu Platform for Cloud Foundry (TPCF) configuration
 $TPCFCredHubSecret = 'VMware1!VMware1!VMware1!' # must be 20 or more characters
 $TPCFAZ = $BOSHAZAssignment
 $TPCFNetwork = $BOSHNetworkAssignment
 $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many large apps
 
-# User provided cert (full chain) and private key for the apps and system wildcard domains for TPCF
-# see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
+# User provided cert (full chain) and private key for the apps and system wildcard domains for TPCF. See https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
 $userProvidedCert = $false
-$CertPath = "/Users/Tanzu/certs/fullchain.pem"
-$KeyPath = "/Users/Tanzu/certs/privkey.pem"
+$CertPath = "/Users/Tanzu/certs/TP/fullchain.pem"
+$KeyPath = "/Users/Tanzu/certs/TP/privkey.pem"
+
+##############################
 
 # Install Tanzu AI Solutions?
 $InstallTanzuAI = $true 
@@ -120,20 +130,50 @@ $OllamaChatModel = "gemma2:2b"
 $ToolsModel = $true
 $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 
-# Validation parameters
-if ($InstallHealthwatch){
-    $RequiredIPs = 23 # 24 minus Ops Man
-    $RequiredStorageGB = 475
-    $RequiredCpuGHz = 6
-    $RequiredMemoryGB = 120
-}
-else {
-    $RequiredIPs = 11 # 12 minus Ops Man
-    $RequiredStorageGB = 400
-    $RequiredCpuGHz = 5
-    $RequiredMemoryGB = 100
+##############################
+
+# Tanzu Hub
+$UserProvidedHubCert = $false
+$HubCertPath = "/Users/Tanzu/certs/Hub/fullchain.pem"
+$HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
+
+##############################
+
+# Product resource requirements
+$ProductRequirements = @{
+    "OpsMan" = @{
+        IP = 2
+        CPUGHz = 1
+        MemoryGB = 16
+        StorageGB = 40
+    }
+    "TPCF" = @{
+        IP = 5
+        CPUGHz = 2
+        MemoryGB = 42
+        StorageGB = 200
+    }
+    "TanzuAI" = @{
+        IP = 6
+        CPUGHz = 2
+        MemoryGB = 26
+        StorageGB = 140
+    }
+    "HealthWatch" = @{
+        IP = 11
+        CPUGHz = 1
+        MemoryGB = 16
+        StorageGB = 100
+    }
+    "Hub" = @{
+        IP = 13
+        CPUGHz = 10
+        MemoryGB = 100
+        StorageGB = 400
+    }
 }
 
+##############################
 
 # Required vSphere API privileges at vCenter level for Tanzu Operations Manager
 $requiredVcenterPrivileges = @(
@@ -231,6 +271,8 @@ $requiredDatacenterPrivileges = @(
     "VApp.ApplicationConfig"
 )
 
+##############################
+
 $verboseLogFile = "tanzu-genai-platform-installer.log"
 
 # Installer Overrides
@@ -243,6 +285,7 @@ $setupTPCF = 1
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
 $setupHealthwatch = $InstallHealthwatch
+$setupHub = $InstallHub
 $ignoreWarnings = $false
 
 ############################################################################################
@@ -1196,6 +1239,50 @@ function Test-Certificate {
     }
 }
 
+function Calculate-TotalRequirements {
+    param(
+        [hashtable]$ProductRequirements
+    )
+
+    My-Logger "Calculating total install requirements to be used in validation tests" -LogOnly
+
+    # Define which products to install
+    $ProductsToInstall = @{
+        "OpsMan" = $true
+        "TPCF" = $true
+        "TanzuAI" = $InstallTanzuAI
+        "HealthWatch" = $InstallHealthwatch
+        "Hub" = $InstallHub
+    }
+
+    # Initialize totals
+    $TotalRequirements = @{
+        IP = 0
+        CPUGHz = 0
+        MemoryGB = 0
+        StorageGB = 0
+    }
+
+    # Calculate total requirements
+    foreach ($product in $ProductsToInstall.Keys) {
+        if ($ProductsToInstall[$product] -and $ProductRequirements.ContainsKey($product)) {
+            $TotalRequirements.IP += $ProductRequirements[$product].IP
+            $TotalRequirements.CPUGHz += $ProductRequirements[$product].CPUGHz
+            $TotalRequirements.MemoryGB += $ProductRequirements[$product].MemoryGB
+            $TotalRequirements.StorageGB += $ProductRequirements[$product].StorageGB
+        }
+    }
+
+    My-Logger "Total Requirements Summary:" -LogOnly
+    My-Logger "===========================" -LogOnly
+    My-Logger "Total IP addresses needed: $($TotalRequirements.IP)" -LogOnly
+    My-Logger "Total CPU needed: $($TotalRequirements.CPUGHz) GHz" -LogOnly
+    My-Logger "Total Memory needed: $($TotalRequirements.MemoryGB) GB" -LogOnly
+    My-Logger "Total Storage needed: $($TotalRequirements.StorageGB) GB" -LogOnly
+
+    return $TotalRequirements
+}
+
 function Get-ClusterFreeResources {
     param (
         [Parameter(Mandatory=$true)]
@@ -1539,6 +1626,9 @@ if($preCheck -eq 1) {
     # Create an array to track the order of tests
     $TestOrder = @()
 
+    #Calculate total resource requirments to be used in several tests 
+    $Requirements = Calculate-TotalRequirements -ProductRequirements $ProductRequirements
+
     # Verify if OM CLI exists
     My-Logger "Validating if OM CLI exists at $OMCLI" -LogOnly
     Run-Test -TestName "Files: OM CLI exists" -TestCode {
@@ -1586,6 +1676,14 @@ if($preCheck -eq 1) {
         My-Logger "Validating if Healthwatch Exporter tile file exists at $HealthwatchExporterTile" -LogOnly
         Run-Test -TestName "Files: Healthwatch Exporter tile file exists" -TestCode {
             if (Test-Path $HealthwatchExporterTile) { return $true } else { return "Files: Unable to find $HealthwatchExporterTile" }
+        }
+    }
+
+    # Verify if Tanzu Hub tile file exists
+    if ($InstallHub -eq $true) {
+        My-Logger "Validating if Tanzu Hub tile file exists at $HubTile" -LogOnly
+        Run-Test -TestName "Files: Tanzu Hub tile file exists" -TestCode {
+            if (Test-Path $HubTile) { return $true } else { return "Files: Unable to find $HubTile" }
         }
     }
 
@@ -1681,10 +1779,10 @@ if($preCheck -eq 1) {
     }
 
     # verify have enough IPs available
-    My-Logger "Validating if have at least $RequiredIPs IPs available" -LogOnly
+    My-Logger "Validating if have at least $Requirements.IP IPs available" -LogOnly
     Run-Test -TestName "Network: Network capacity" -TestCode {
         try {
-            $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $RequiredIPs
+            $capacityResult = Test-NetworkCapacity -NetworkCIDR $VMNetworkCIDR -ReservedIPs $BOSHNetworkReservedRange -MinimumRequired $Requirements.IP
             if ($capacityResult -eq $true) {
                 return $true
             } else {
@@ -1861,8 +1959,6 @@ if($preCheck -eq 1) {
         }
     }
 
-    ########################################
-    ########################################
     if ($userProvidedCert){
         # Verify cert file exists
         My-Logger "Validating if cert file exists at $CertPath" -LogOnly
@@ -2045,7 +2141,7 @@ if($preCheck -eq 1) {
         try {
             if ($script:viConnectionObject) {
                 $clusterStats = Get-ClusterFreeResources -ClusterName $VMCluster
-                if ($clusterStats.FreeCpuGhz -ge $RequiredCpuGHz) {
+                if ($clusterStats.FreeCpuGhz -ge $Requirements.CPUGHz) {
                     return $true
                 } else {
                     return "vSphere: Not enough CPU resources available"
@@ -2064,7 +2160,7 @@ if($preCheck -eq 1) {
         try {
             if ($script:viConnectionObject) {
                 $clusterStats = Get-ClusterFreeResources -ClusterName $VMCluster
-                if ($clusterStats.FreeMemoryGB -ge $RequiredMemoryGB) {
+                if ($clusterStats.FreeMemoryGB -ge $Requirements.MemoryGB) {
                     return $true
                 } else {
                     return "vSphere: Not enough memory resources available"
@@ -2083,7 +2179,7 @@ if($preCheck -eq 1) {
         try {
             if ($script:viConnectionObject) {
                 $FreeSpaceGB = (Get-Datastore -Name $VMDatastore -ErrorAction Stop).FreeSpaceGB
-                if ($FreeSpaceGB -ge $RequiredStorageGB) {
+                if ($FreeSpaceGB -ge $Requirements.StorageGB) {
                     return $true
                 } else {
                     return "vSphere: Not enough datastore storage available"
@@ -2235,6 +2331,30 @@ if($preCheck -eq 1) {
     My-Logger "Validating if ssh-keygen is installed" -LogOnly
     Run-Test -TestName "ssh-keygen is installed" -TestCode {
         if (Get-Command ssh-keygen -ErrorAction Stop) {return $true} else {return "ssh-keygen not installed"}
+    }
+
+    # Check if TP License Key is valid if TPCF 10.2 or later is being installed
+    $TPCFFilename = Split-Path $TPCFTile -Leaf
+    if ($TPCFFilename -like "*10.2*") {
+        My-Logger "Validating if TP Licence Key is of valid format" -LogOnly
+        Run-Test -TestName "License Key is of valid format" -TestCode {
+            # Check if license key is specified (not null/empty)
+            if ([string]::IsNullOrWhiteSpace($TPCFLicenseKey)) {
+                My-Logger "License Key field is empty" -LogOnly -Level Error
+                return "License Key field is empty"
+            }
+            
+            # Validate license key format (xxxxx-xxxxx-xxxxx-xxxxx-xxxxx)
+            $licensePattern = "^[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$"
+            
+            if ($TPCFLicenseKey -match $licensePattern) {
+                My-Logger "License key format is valid" -LogOnly
+                return $true
+            } else {
+                My-Logger "License Key format is invalid. Expected format: xxxxx-xxxxx-xxxxx-xxxxx-xxxxx" -LogOnly -Level Error
+                return "License Key format is invalid"
+            }
+        }
     }
 
     My-Logger "Input validation complete" 
@@ -2481,6 +2601,16 @@ if($setupTPCF -eq 1) {
         $TPCFkey = [regex]::Match($TPCFcert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
     }
 
+    # Build the license key section conditionally
+    $licenseKeySection = ""
+    if ($TPCFLicenseKey) {
+        $licenseKeySection = @"
+
+  .properties.license_key:
+    value: $TPCFLicenseKey
+"@
+    }
+    
     # Create TPCF config yaml
     $TPCFPayload = @"
 ---
@@ -2518,7 +2648,7 @@ product-properties:
     - name: Internal-encryption-provider-key
       key:
         secret: $TPCFCredHubSecret
-      primary: true
+      primary: true$licenseKeySection
 resource-config:
   backup_restore:
     instances: 0
@@ -2670,9 +2800,162 @@ if($setupGenAI -eq 1) {
         exit
     }
 
-    # Create GenAI config yaml
-    if($ToolsModel -eq 0) {
-        $GenAIPayload = @"
+    # Check if tile is newer than 10.0.3 as the payload spec changed in 10.0.4 and newer
+    if ([System.Version]($GenAIVersion -split '-')[0] -gt [System.Version]"10.0.3") {
+        # Create GenAI config yaml for 10.0.4 and newer
+        if($ToolsModel -eq 0) {
+            $GenAIPayload = @"
+---
+product-name: genai
+product-properties:
+  .controller.plans:
+    value:
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: A high-performing open embedding model
+      model_handles: $OllamaEmbedModel
+      name: embedding-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: Models with chat capabilities
+      model_handles: $OllamaChatModel
+      name: chat-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+  .errands.ollama_models:
+    value:
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaEmbedModel
+      model_capabilities:
+      - embedding
+      model_name: $OllamaEmbedModel
+      vm_type: cpu
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaChatModel
+      model_capabilities:
+      - chat
+      model_name: $OllamaChatModel
+      vm_type: cpu
+  .properties.database_source:
+    selected_option: service_broker
+    value: service_broker
+  .properties.database_source.service_broker.name:
+    value: postgres
+  .properties.database_source.service_broker.plan_name:
+    value: on-demand-postgres-db
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+        } else {
+                $GenAIPayload = @"
+---
+product-name: genai
+product-properties:
+  .controller.plans:
+    value:
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: A high-performing open embedding model
+      model_handles: $OllamaEmbedModel
+      name: embedding-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+    - binding_credential_format: legacy
+      cf_access_enabled: true
+      description: Models with chat and tool capabilities
+      model_handles: $OllamaChatToolsModel
+      name: chat-and-tools-models
+      requests_per_minute: null
+      run_release_tests: false
+      tkgi_access_enabled: true
+      tokens_per_minute: null
+  .errands.ollama_models:
+    value:
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaEmbedModel
+      instances: 1
+      model_capabilities:
+      - embedding
+      model_name: $OllamaEmbedModel
+      ollama_context_length: 2048
+      ollama_flash_attention: false
+      ollama_keep_alive: 60m
+      ollama_kv_cache_type: f16
+      ollama_load_timeout: 5m
+      ollama_num_parallel: 0
+      vm_type: cpu
+      wire_format: openai
+    - azs:
+      - $BOSHAZAssignment
+      handle: $OllamaChatToolsModel
+      instances: 1
+      model_aliases: null
+      model_capabilities:
+      - chat
+      - tools
+      model_name: $OllamaChatToolsModel
+      ollama_context_length: 131072
+      ollama_flash_attention: true
+      ollama_keep_alive: "-1"
+      ollama_kv_cache_type: q4_0
+      ollama_load_timeout: 5m
+      ollama_num_parallel: 1
+      vm_type: cpu-2xlarge
+      wire_format: openai
+  .errands.vsphere_vm_types:
+    value:
+    - cpu: 8
+      ephemeral_disk: 65536
+      name: cpu
+      processing_technology: cpu
+      ram: 32768
+      root_disk: 25
+    - cpu: 16
+      ephemeral_disk: 65536
+      name: cpu-2xlarge
+      processing_technology: cpu
+      ram: 32768
+      root_disk: 25
+  .properties.database_source:
+    selected_option: service_broker
+    value: service_broker
+  .properties.database_source.service_broker.name:
+    value: postgres
+  .properties.database_source.service_broker.plan_name:
+    value: on-demand-postgres-db
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+        }
+    } else {
+        # Create GenAI config yaml for 10.0.3
+        if($ToolsModel -eq 0) {
+            $GenAIPayload = @"
 ---
 product-name: genai
 product-properties:
@@ -2706,7 +2989,7 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
-    } else {
+        } else {
             $GenAIPayload = @"
 ---
 product-name: genai
@@ -2764,6 +3047,7 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
+        }
     }
 
     $GenAIyaml = "genai-config.yaml"
@@ -2899,6 +3183,109 @@ network-properties:
     My-Logger "Healthwatch and Healthwatch Exporter successfully installed"
 }
 
+if($setupHub -eq 1) {
+
+    # Verify if Hub is already installed
+    $productToCheck = "hub"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Tanzu Hub tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $HubProductName = & "$OMCLI" product-metadata --product-path $HubTile --product-name
+    $HubVersion = & "$OMCLI" product-metadata --product-path $HubTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Tanzu Hub tile to Tanzu Operations Manager (can take up to 15 minutes)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HubTile", "-r", "3600")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Tanzu Hub tile to Tanzu Operations Manager..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HubProductName", "--product-version", "$HubVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Check if to use user provided cert or auto generate a self-signed cert
+    if ($UserProvidedHubCert){
+        # read in user provided cert chain and key
+        $HubCert = (Get-Content -Path $HubCertPath) -join "\n"
+        $HubKey = (Get-Content -Path $HubKeyPath) -join "\n"
+    } else {
+        # Generate a self-signed cert and key for Hub
+        $HubCert_and_key = & "$OMCLI" -k -t $OpsManagerFQDN -u $OpsManagerAdminUsername -p $OpsManagerAdminPassword generate-certificate -d $HubFQDN
+    
+        $pattern = "-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----\\n"
+        $HubCert = [regex]::Match($HubCert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    
+        $pattern = "-----BEGIN RSA PRIVATE KEY-----.*?-----END RSA PRIVATE KEY-----\\n"
+        $HubKey = [regex]::Match($HubCert_and_key, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    }
+
+    # Create Hub config yaml
+    $HubPayload = @"
+---
+product-name: hub
+product-properties:
+  .properties.dns_zone:
+    value: $HubFQDN
+  .properties.ingress_tls:
+    value:
+      cert_pem: "$HubCert"
+      private_key_pem: "$HubKey"
+  .properties.idp:
+    selected_option: idp_internal
+    value: idp_internal
+  .properties.tia:
+    selected_option: none
+    value: none
+  .properties.trivy_allow_insecure_connections:
+    value: true
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+
+    $Hubyaml = "hub-config.yaml"
+    $HubPayload > $Hubyaml
+
+    My-Logger "Applying Tanzu Hub configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$Hubyaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Installing Tanzu Hub (can take up to 75 minutes)..."
+    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$HubProductName")
+    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+    My-Logger "${OMCLI} $installArgs" -LogOnly
+    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Tanzu Hub successfully installed" 
+}
+
 $EndTime = Get-Date
 $duration = [math]::Round((New-TimeSpan -Start $StartTime -End $EndTime).TotalMinutes,2)
 
@@ -2943,3 +3330,9 @@ My-Logger "Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bi
 My-Logger "- cf login -a https://api.sys.$TPCFDomain -u $OpsManagerAdminUsername -p $uaaAdminPassword --skip-ssl-validation"
 My-Logger " "
 My-Logger "  Note; you can download cf cli from https://apps.sys.$TPCFDomain/tools or https://github.com/cloudfoundry/cli/releases"
+
+If ($InstallHub){
+    My-Logger " "
+    My-Logger "Tanzu Hub"
+    My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN here https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/install-install.html#access-tanzu-hub"
+}
