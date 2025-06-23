@@ -38,6 +38,9 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
   - Certificates (optional)
     - By default, the installer creates a self-signed cert for TLS termination at the GoRouter. A user can provide their own cert if wished. See [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/security_config.html) for cert requirements. 
 
+**Entitlement**
+- If don't already have entitlement to Tanzu Platform, you can request a 90 day trial [here](https://support.broadcom.com/group/ecx/trials-program)
+
 **Workstation/jump-host**
 - [Powershell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell) or later installed
 - [VMware PowerCLI](https://techdocs.broadcom.com/us/en/vmware-cis/vcf/power-cli/latest/powercli/installing-vmware-vsphere-powercli/install-powercli.html) installed eg `Install-Module VMware.PowerCLI`
@@ -94,6 +97,7 @@ $OpsManagerFQDN           = "opsman.tanzu.lab"
 $BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10,10.0.70.30-10.0.70.254"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
 $TPCFGoRouter             = "10.0.70.20"                                             #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain               = "tp.tanzu.lab"                                           #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
+$TPCFLicenseKey = ""                                                                 #License key required for 10.2 and later
 ```
 
 Update Healthwatch fields 
@@ -427,5 +431,5 @@ The script was validated against the following versions...
 - **PowerCLI:** 13.3.0
 - **vCenter:** 8U3
 
-  ## Shout out
-  Shout out to [William Lam](https://williamlam.com/) as used he Nested PKS script from 2018 as inspiration for this script.
+## Shoutout
+Shoutout to [William Lam](https://williamlam.com/) as used he Nested PKS script from 2018 as inspiration for this script.
