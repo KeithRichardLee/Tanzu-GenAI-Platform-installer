@@ -367,56 +367,70 @@ $ignoreWarnings = $false
 $ignoreWarnings = $true
 ```
 
+## Help!
+If you find a bug or need help, please open an [issue](https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer/issues)
+
+PR's most welcome too!
+
 ## Pre-checks
 Below are the pre-checks the script performs...
-- OM CLI exists
-- Tanzu Operations Manager OVA exists
-- Tanzu PLatform for Cloud Foundry tile exists
-- VMware Tanzu Postgres tile exists
-- VMware Tanzu GenAi tile exists
-- VMware Tanzu Healthwatch tile exists
-- VMware Tanzu Healthwatch Exporter tile exists
-- VMware Tanzu Hub tile exists
-- Network gateway can be reached
-- vCenter can be reached
-- DNS server can be reached
-- NTP server can be reached
-- NTP server responds to a NTP query
-- Reserved range in valid format
-- Enough free IP addresses available
-- IP addresses are available
-- Tanzu Operations Manager IP is in reserved range
-- GoRouter is not in the reserved range
-- Tanzu Operations Manager IP is available
-- GoRouter IP is available
-- Tanzu Operations Manager DNS entry is valid
-- Apps domain wildcard DNS entry is valid
-- System domain wildcard DNS entry is valid
-- Apps domain resolves to GoRouter IP
-- System domain resolves to GoRouter IP
-- Connectivity to Ollama.com
-- User provided cert and key exists
-- User provided cert is valid
-- vCenter credentials are valid
-- vCenter user has required vSphere API permissions
-- Datacenter object is valid
-- Resource pool object is valid
-- Datacenter object is valid
-- Portgroup object is valid
-- Enough CPU resources available
-- Enough memory resources available
-- Enough storage available
-- Tanzu Operations Manager is not already installed
-- BOSH Director is not already installed
-- Tanzu Platform for Cloud Foundry is not already installed
-- VMware Tanzu Postgres is not already installed
-- VMware Tanzu GenAI is not already installed
-- VMware Tanzu Healthwatch is not already installed
-- VMware Tanzu Healthwatch Exporter is not already installed
-- PowerCLI module is installed
-- ssh-keygen is installed
-- Tanzu Platform license key is in valid format
 
+- Files
+  - Tanzu Operations Manager OVA exists
+  - Tanzu PLatform for Cloud Foundry tile exists
+  - VMware Tanzu Postgres tile exists
+  - VMware Tanzu GenAi tile exists
+  - VMware Tanzu Healthwatch tile exists
+  - VMware Tanzu Healthwatch Exporter tile exists
+  - VMware Tanzu Hub tile exists
+
+- Network
+  - Network gateway can be reached
+  - vCenter can be reached
+  - DNS server can be reached
+  - NTP server can be reached
+  - NTP server responds to a NTP query
+  - Reserved range in valid format
+  - Enough free IP addresses available
+  - IP addresses are available
+  - Tanzu Operations Manager IP is in reserved range
+  - GoRouter is not in the reserved range
+  - Tanzu Operations Manager IP is available
+  - GoRouter IP is available
+  - Tanzu Operations Manager DNS entry is valid
+  - Apps domain wildcard DNS entry is valid
+  - System domain wildcard DNS entry is valid
+  - Apps domain resolves to GoRouter IP
+  - System domain resolves to GoRouter IP
+  - Connectivity to Ollama.com
+  - User provided cert and key exists
+  - User provided cert is valid
+
+- vSphere
+  - vCenter credentials are valid
+  - vCenter user has required vSphere API permissions
+  - Datacenter object is valid
+  - Resource pool object is valid
+  - Datacenter object is valid
+  - Portgroup object is valid
+  - Enough CPU resources available
+  - Enough memory resources available
+  - Enough storage available
+
+- Platform
+  - Tanzu Operations Manager is not already installed
+  - BOSH Director is not already installed
+  - Tanzu Platform for Cloud Foundry is not already installed
+  - VMware Tanzu Postgres is not already installed
+  - VMware Tanzu GenAI is not already installed
+  - VMware Tanzu Healthwatch is not already installed
+  - VMware Tanzu Healthwatch Exporter is not already installed
+  - Tanzu Platform license key is in valid format
+
+- Other
+  - OM CLI is installed
+  - PowerCLI module is installed
+  - ssh-keygen is installed
 
 ## Validation
 The script was validated against the following versions...
@@ -431,5 +445,5 @@ The script was validated against the following versions...
 - **PowerCLI:** 13.3.0
 - **vCenter:** 8U3
 
-## Shoutout
-Shoutout to [William Lam](https://williamlam.com/) as used he Nested PKS script from 2018 as inspiration for this script.
+## Credits
+Shoutout to [William Lam](https://williamlam.com/) as used his Nested PKS script from 2018 as inspiration for this script.
