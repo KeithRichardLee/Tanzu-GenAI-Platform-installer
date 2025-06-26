@@ -783,7 +783,6 @@ function Test-IPAddressAvailability {
     My-Logger "IP $IPAddress is within network $NetworkCIDR" -LogOnly
     
     # Parse excluded IPs string
-    $excludedList = @()
     $excludedParts = $ExcludedIPs.Split(',')
     
     foreach ($part in $excludedParts) {
@@ -844,7 +843,6 @@ function Test-NetworkCapacity {
     
     # Parse CIDR notation
     $cidrParts = $NetworkCIDR.Split('/')
-    $networkIP = $cidrParts[0]
     $subnetMask = [int]$cidrParts[1]
     
     # Calculate total IPs in the network
@@ -1116,7 +1114,6 @@ function Test-Certificate {
         
         for ($i = 0; $i -lt $certificates.Count; $i++) {
             $cert = $certificates[$i]
-            $isCA = ($cert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Basic Constraints" }) -ne $null
             $basicConstraints = $cert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Basic Constraints" }
             
             if ($i -eq 0) {
@@ -1798,7 +1795,7 @@ if($preCheck -eq 1) {
     Run-Test -TestName "Network: Usable IPs are available" -TestCode {
         try {
             $pingsResult = Ping-NetworkExcluding -NetworkCIDR $VMNetworkCIDR -ExcludeList $BOSHNetworkReservedRange
-            $reachableCount = ($pingsResults | Where-Object { $_.Status -eq "Reachable" }).Count
+            $reachableCount = ($pingsResult | Where-Object { $_.Status -eq "Reachable" }).Count
             if ($reachableCount -eq 0) {
                 return $true
             } else {
