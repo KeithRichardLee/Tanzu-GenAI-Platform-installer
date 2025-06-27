@@ -1502,6 +1502,10 @@ if($confirmDeployment -eq 1) {
         Write-Host -NoNewline -ForegroundColor Green "Healthwatch Exporter tile path: "
         Write-Host -ForegroundColor White $HealthwatchExporterTile
     }
+    if ($InstallHub) {
+        Write-Host -NoNewline -ForegroundColor Green "Tanzu Hub tile path: "
+        Write-Host -ForegroundColor White $HubTile
+    }
     Write-Host -NoNewline -ForegroundColor Green "OM CLI path: "
     Write-Host -ForegroundColor White $OMCLI
 
@@ -1589,6 +1593,10 @@ if($confirmDeployment -eq 1) {
 
     if ($InstallTanzuAI) {
         Write-Host -ForegroundColor Yellow "`n---- Tanzu AI Solutions Configuration ----"
+        Write-Host -NoNewline -ForegroundColor Green "AZ: "
+        Write-Host -ForegroundColor White $BOSHAZAssignment
+        Write-Host -NoNewline -ForegroundColor Green "Network: "
+        Write-Host -ForegroundColor White $BOSHNetworkAssignment
         Write-Host -NoNewline -ForegroundColor Green "Ollama embedding model: "
         Write-Host -ForegroundColor White $OllamaEmbedModel
         if ($ToolsModel) {
@@ -1606,6 +1614,16 @@ if($confirmDeployment -eq 1) {
         Write-Host -ForegroundColor White $BOSHAZAssignment
         Write-Host -NoNewline -ForegroundColor Green "Network: "
         Write-Host -ForegroundColor White $BOSHNetworkAssignment
+    }
+
+    if ($InstallHub) {
+        Write-Host -ForegroundColor Yellow "`n---- Tanzu Hub Configuration ----"
+        Write-Host -NoNewline -ForegroundColor Green "AZ: "
+        Write-Host -ForegroundColor White $BOSHAZAssignment
+        Write-Host -NoNewline -ForegroundColor Green "Network: "
+        Write-Host -ForegroundColor White $BOSHNetworkAssignment
+        Write-Host -NoNewline -ForegroundColor Green "FQDN: "
+        Write-Host -ForegroundColor White $HubFQDN
     }
 
     Write-Host -ForegroundColor Magenta "`nWould you like to proceed with this deployment?`n"
@@ -2312,6 +2330,23 @@ if($preCheck -eq 1) {
             }
         }
 
+        # Check if Tanzu Hub is already installed
+        if ($InstallHub) {
+            My-Logger "Validating if Tanzu Hub is not already installed" -LogOnly
+            Run-Test -TestName "Platform: Tanzu Hub is not installed" -TestCode {
+                try {
+                    $productToCheck = "hub"
+                    $deployedResult = Check-productDeployed -productName $productToCheck
+                    if (!$deployedResult){
+                        return $true
+                    } else {
+                        return "Platform: Tanzu Hub is already installed"
+                    }
+                } catch {
+                    return "Unable to confirm if Tanzu Hub is already installed. Error: $($_.Exception.Message)"
+                }
+            }
+        }
     }
 
     # Verify if VMware PowerCLI module is installed
@@ -2400,7 +2435,7 @@ if($deployOpsManager -eq 1) {
     $opsMgrOvfCOnfig.Common.custom_hostname.Value = $OpsManagerFQDN
     $opsMgrOvfCOnfig.NetworkMapping.Network_1.Value = $VMNetwork
     
-    Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+    Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false -Scope Session | Out-Null
     $opsmgr_vm = Import-VApp -Source $OpsManOVA -OvfConfiguration $opsMgrOvfCOnfig -Name $OpsManagerDisplayName -Location $resourcepool -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
     My-Logger "Tanzu Operations Manager installed"
@@ -3296,40 +3331,42 @@ My-Logger " "
 My-Logger "Installation log: $verboseLogFile"
 My-Logger " "
 
-#retrieve uaa admin password
-$configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "credentials", "-p", "cf", "-c", ".uaa.admin_credentials")
-$credsOutput = & $OMCLI $configArgs
-$uaaAdminPassword = $null
-foreach ($line in $credsOutput) {
-    if ($line -match "^\|\s*admin\s*\|\s*(.+?)\s*\|$") {
-        $uaaAdminPassword = $Matches[1].Trim()
-        break
+if ($setupTPCF){
+    #retrieve uaa admin password
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "credentials", "-p", "cf", "-c", ".uaa.admin_credentials")
+    $credsOutput = & $OMCLI $configArgs
+    $uaaAdminPassword = $null
+    foreach ($line in $credsOutput) {
+        if ($line -match "^\|\s*admin\s*\|\s*(.+?)\s*\|$") {
+            $uaaAdminPassword = $Matches[1].Trim()
+            break
+        }
     }
-}
 
-My-Logger "======================================================"
-My-Logger "                Next steps...                         "
-My-Logger "======================================================"
-My-Logger "Follow the next steps at the link below where you can learn how to push your first app! Or, alternatively..."
-My-Logger " - https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer"
-My-Logger " "
-My-Logger "Log into Tanzu Operations Manager"
-My-Logger "- Open a browser to https://$OpsManagerFQDN"
-My-Logger "- Username: $OpsManagerAdminUsername"
-My-Logger "- Password: $OpsManagerAdminPassword"
-My-Logger " "
-My-Logger "Log into Tanzu Apps Manager"
-My-Logger "- Open a browser to https://apps.sys.$TPCFDomain"
-My-Logger "- Username: $OpsManagerAdminUsername"
-My-Logger "- Password: $uaaAdminPassword"
-My-Logger " "
-My-Logger "Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bind services, and more"
-My-Logger "- cf login -a https://api.sys.$TPCFDomain -u $OpsManagerAdminUsername -p $uaaAdminPassword --skip-ssl-validation"
-My-Logger " "
-My-Logger "  Note; you can download cf cli from https://apps.sys.$TPCFDomain/tools or https://github.com/cloudfoundry/cli/releases"
-
-If ($InstallHub){
+    My-Logger "======================================================"
+    My-Logger "                Next steps...                         "
+    My-Logger "======================================================"
+    My-Logger "Follow the next steps at the link below where you can learn how to push your first app! Or, alternatively..."
+    My-Logger " - https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer"
     My-Logger " "
-    My-Logger "Tanzu Hub"
-    My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN here https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/install-install.html#access-tanzu-hub"
+    My-Logger "Log into Tanzu Operations Manager"
+    My-Logger "- Open a browser to https://$OpsManagerFQDN"
+    My-Logger "- Username: $OpsManagerAdminUsername"
+    My-Logger "- Password: $OpsManagerAdminPassword"
+    My-Logger " "
+    My-Logger "Log into Tanzu Apps Manager"
+    My-Logger "- Open a browser to https://apps.sys.$TPCFDomain"
+    My-Logger "- Username: $OpsManagerAdminUsername"
+    My-Logger "- Password: $uaaAdminPassword"
+    My-Logger " "
+    My-Logger "Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bind services, and more"
+    My-Logger "- cf login -a https://api.sys.$TPCFDomain -u $OpsManagerAdminUsername -p $uaaAdminPassword --skip-ssl-validation"
+    My-Logger " "
+    My-Logger "  Note; you can download cf cli from https://apps.sys.$TPCFDomain/tools or https://github.com/cloudfoundry/cli/releases"
+
+    If ($InstallHub){
+        My-Logger " "
+        My-Logger "Tanzu Hub"
+        My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN here https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/install-install.html#access-tanzu-hub"
+    }
 }
