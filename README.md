@@ -376,10 +376,10 @@ PR's most welcome too!
 Below are the pre-checks the script performs...
 
 - Files
-  - Tanzu Operations Manager OVA exists
-  - Tanzu PLatform for Cloud Foundry tile exists
+  - VMware Tanzu Operations Manager OVA exists
+  - VMware Tanzu Platform for Cloud Foundry tile exists
   - VMware Tanzu Postgres tile exists
-  - VMware Tanzu GenAi tile exists
+  - VMware Tanzu GenAI tile exists
   - VMware Tanzu Healthwatch tile exists
   - VMware Tanzu Healthwatch Exporter tile exists
   - VMware Tanzu Hub tile exists
@@ -408,7 +408,7 @@ Below are the pre-checks the script performs...
 
 - vSphere
   - vCenter credentials are valid
-  - vCenter user has required vSphere API permissions
+  - vCenter user / service account has required vSphere API permissions
   - Datacenter object is valid
   - Resource pool object is valid
   - Datastore object is valid
@@ -418,14 +418,14 @@ Below are the pre-checks the script performs...
   - Enough storage available
 
 - Platform
-  - Tanzu Operations Manager is not already installed
+  - VMware Tanzu Operations Manager is not already installed
   - BOSH Director is not already installed
-  - Tanzu Platform for Cloud Foundry is not already installed
+  - VMware Tanzu Platform for Cloud Foundry is not already installed
   - VMware Tanzu Postgres is not already installed
   - VMware Tanzu GenAI is not already installed
   - VMware Tanzu Healthwatch is not already installed
   - VMware Tanzu Healthwatch Exporter is not already installed
-  - Tanzu Platform license key is in valid format
+  - VMware Tanzu Platform license key is in valid format
 
 - Other
   - OM CLI is installed
