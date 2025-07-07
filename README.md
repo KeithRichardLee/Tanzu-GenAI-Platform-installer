@@ -97,7 +97,7 @@ $OpsManagerFQDN           = "opsman.tanzu.lab"
 $BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10,10.0.70.30-10.0.70.254"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
 $TPCFGoRouter             = "10.0.70.20"                                             #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain               = "tp.tanzu.lab"                                           #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
-$TPCFLicenseKey = ""                                                                 #License key required for 10.2 and later
+$TPCFLicenseKey           = ""                                                       #License key required for 10.2 and later
 ```
 
 Update Healthwatch fields 
