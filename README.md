@@ -104,7 +104,7 @@ Update Healthwatch fields
 - Note; installing Healthwatch (observability) is optional. Installing Healthwatch requires an additional 11 IP addresses, 1 GHz CPU, 16 GB mem, and 100 GB storage.
 ```bash
 ### Install Healthwatch (observability)?
-$InstallHealthwatch = $true
+$InstallHealthwatch      = $true
 $HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 $HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 ```
@@ -114,8 +114,8 @@ Update Tanzu Hub fields
 ```bash
 ### Install Tanzu Hub (global control plane)?
 $InstallHub = $true
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
-$HubFQDN = "hub.tanzu.lab"
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubFQDN    = "hub.tanzu.lab"
 ```
 
 ## (Optional) Advanced Config
@@ -131,18 +131,18 @@ User provided cert for GoRouter. With $userProvidedCert set to false (default) t
 # User provided cert (full chain) and private key for the apps and system wildcard domains
 # see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
 $userProvidedCert = $false
-$CertPath = "/Users/Tanzu/certs/fullchain.pem"
-$KeyPath = "/Users/Tanzu/certs/privkey.pem"
+$CertPath         = "/Users/Tanzu/certs/fullchain.pem"
+$KeyPath          = "/Users/Tanzu/certs/privkey.pem"
 ```
 
 AI models
 ```bash
 # Tanzu AI Solutions config 
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatModel = "gemma2:2b"
+$OllamaChatModel  = "gemma2:2b"
 
 # Deploy a model with chat and tools capabilities instead of just chat?  note; a vm will be created with 16 vCPU and 32 GB mem to run the model
-$ToolsModel = $true
+$ToolsModel           = $true
 $OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 ```
 
