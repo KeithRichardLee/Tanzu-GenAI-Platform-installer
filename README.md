@@ -411,7 +411,7 @@ Below are the pre-checks the script performs...
   - vCenter user has required vSphere API permissions
   - Datacenter object is valid
   - Resource pool object is valid
-  - Datacenter object is valid
+  - Datastore object is valid
   - Portgroup object is valid
   - Enough CPU resources available
   - Enough memory resources available
