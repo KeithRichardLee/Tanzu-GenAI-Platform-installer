@@ -62,9 +62,9 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, VMware Postgres tile, VMware Tanzu GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.0.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.0-build.7.pivotal"
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.0-build.42.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.1.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.1-build.2.pivotal"
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"
 $GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.0.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
@@ -105,8 +105,8 @@ Update Healthwatch fields
 ```bash
 ### Install Healthwatch (observability)?
 $InstallHealthwatch      = $true
-$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
-$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.3-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.3-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 ```
 
 Update Tanzu Hub fields 
@@ -166,7 +166,7 @@ Below we will deploy a Spring chatbot application which can consume AI services 
 - Retrieve UAA admin credentials
   - The script on completion will print out the admin credentials for Tanzu Apps Manager and CF CLI, alternatively, you can retrieve them via Tanzu Operations Manager > Small Footprint Tanzu Platform for Cloud Foundry > Credentials > UAA > Admin Credentials
 
-- Download CF CLI
+- Download CF CLI and login to the platform
   -  The above script on completion will print out how to download cf cli and how to run `cf login`, alternatively, see the [install docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/install-go-cli.html) and [login docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/getting-started.html)
 
 - Create an Org and a Space
@@ -201,24 +201,19 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```
     - If you have Maven already installed, make Maven 3.8 or later the current candiate version, or which ever candidate version you have installed
     ```bash
-    sdk use maven 3.9.9
+    sdk use maven 3.9.10
     ```
-- clone git repos
+- Download / clone git repos
   ```bash
-  git clone https://github.com/cpage-pivotal/cf-mcp-client
-  git clone https://github.com/kirtiapte/bitcoin-mcp-server
+  gh release download v1.4.3 --repo cpage-pivotal/cf-mcp-client -D cf-mcp-client
+  gh repo clone kirtiapte/bitcoin-mcp-server
   ```
 
 ## Deploy chat app
 
-### Build the app
-```bash
-cd cf-mcp-client
-mvn clean package
-```
-
 ### Push the app to the platform
 ```bash
+cd cf-mcp-client
 cf push
 ```
 
@@ -244,7 +239,7 @@ cf marketplace -e genai
 
 3. Create a service instance that provides chat LLM capabilities
 ```bash
-cf create-service genai mistral-nemo chat-llm
+cf create-service genai chat-and-tools-model chat-llm
 ```
 
 4. Bind the service to the app
@@ -259,7 +254,7 @@ cf restart ai-tool-chat
 
 Now the chatbot will use the LLM to respond to chat requests
 
-Ask it for the price of bitcoin
+Ask it for the current price of bitcoin!
 
 
 ### Bind to services so can do RAG
@@ -270,29 +265,35 @@ cf marketplace -e genai
 
 2. Create a service instance that provides embedding LLM capabilities
 ```bash
-cf create-service genai nomic-embed-text embedding-llm
+cf create-service genai embedding-model embedding-llm
 ```
 
-3. Create a Postgres service instance to use as a vector database
+3. View postgres services available
+```bash
+cf marketplace -e postgres
+```
+
+4. Create a Postgres service instance to use as a vector database
 
 ```bash
 cf create-service postgres on-demand-postgres-db vector-db
 ```
 
-4. Bind the services to the app
+5. Bind the services to the app
 
 ```bash
 cf bind-service ai-tool-chat embedding-llm 
 cf bind-service ai-tool-chat vector-db
 ```
+Note; if it fails to bind the vector-db, it may be that the Postgres DB is still being created from the previous command. You can confirm by running "cf services" and checking the "last operation" field. 
 
-5. Restart the app to apply the binding
+6. Restart the app to apply the binding
 
 ```bash
 cf restart ai-tool-chat
 ```
 
-6. Click on the document tool on the right-side of the screen, and upload a .PDF File
+7. Click on the document tool on the right-side of the screen, and upload a .PDF File
 
 Now your chatbot will respond to queries about the uploaded document
 
@@ -334,13 +335,23 @@ Your chatbot will now register with the MCP server, and the LLM will be able to 
 
 Ask it for the current price of bitcoin
 
+Congratulations, you have come to the end of this quick start guide. We have barely scratched the surface of the GenAI capabilities of the platform, or the vast capabilities of the platform as a whole. To learn more, please see official documentation and resources below.
 
 # Appendix
 
 ## Resources
 - [VMware Tanzu AI Solutions website](https://www.vmware.com/solutions/app-platform/ai)
-- [Tanzu Platform Marketplace Services](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-Platform/Tanzu-Platform-Marketplace-Services.md)
+- [VMware Tanzu AI Solutions blogs, webinars, videos](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-AI-Solutions/Tanzu-AI-Solutions-resources.md)
+- [VMware Tanzu Platform Marketplace Services](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-Platform/Tanzu-Platform-Marketplace-Services.md)
 - [How to install MinIO object storage server to host Ollama and vLLM models offline](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-AI-Solutions/how-to-install-minio-to-host-ollama-and-vllm-models-offline.md)
+
+## Documentation
+- [VMware Tanzu Operations Manager](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-1/tanzu-ops-manager/index.html)
+- [Small Footprint Tanzu Platform for Cloud Foundry](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/concepts-overview.html)
+- [VMware Tanzu Postgres](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-for-postgres-on-cloud-foundry/10-1/postgres/index.html)
+- [VMware Tanzu GenAI](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform-services/genai-on-tanzu-platform-for-cloud-foundry/10-2/ai-cf/index.html)
+- [VMware Tanzu Healthwatch](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform-services/healthwatch-for-vmware-tanzu/2-3/healthwatch/index.html)
+- [VMware Tanzu Hub](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/index.html)
 
 ## Troubleshooting
 - An install log can be found where you run the script from with a file name of tanzu-genai-platform-installer.log. It contains verbose logging.
@@ -434,16 +445,19 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.0.ova
-- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.0-build.7.pivotal
-- **VMware Postgres:** postgres-10.1.0-build.42.pivotal
-- **Tanzu GenAI:** genai-10.2.0.pivotal
-- **Healthwatch:** healthwatch-2.3.2-build.21.pivotal
-- **Healthwatch Exporter:** healthwatch-pas-exporter-2.3.2-build.21.pivotal
+- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.1.ova
+- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.1-build.2.pivotal
+- **VMware Postgres:** postgres-10.1.1-build.1.pivotal
+- **Tanzu GenAI:** genai-10.2.1.pivotal
+- **Healthwatch:** healthwatch-2.3.3-build.21.pivotal
+- **Healthwatch Exporter:** healthwatch-pas-exporter-2.3.3-build.21.pivotal
+- **Tanzu Hub:** tanzu-hub-10.2.0.pivotal
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.1
 - **PowerCLI:** 13.3.0
 - **vCenter:** 8U3
+- **CF CLI:** 10.2
+- **cf-mcp-client:** 1.4.3
 
 ## Credits
 Shoutout to [William Lam](https://williamlam.com/) as used his Nested PKS script from 2018 as inspiration for this script.

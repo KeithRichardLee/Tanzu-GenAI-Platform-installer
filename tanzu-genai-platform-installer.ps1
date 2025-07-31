@@ -16,9 +16,9 @@
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.0.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.0-build.7.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.0-build.42.pivotal"      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.1.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.1-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
 $GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.0.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
@@ -49,8 +49,8 @@ $TPCFLicenseKey = ""                      #License key required for 10.2 and lat
 
 ### Install Healthwatch (observability)?
 $InstallHealthwatch = $false
-$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.2-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
-$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.2-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.3-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
+$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.3-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
 
 ### Install Tanzu Hub (global control plane)?
 $InstallHub = $false
@@ -2832,11 +2832,9 @@ if($setupGenAI -eq 1) {
         exit
     }
 
-    # Check if tile is newer than 10.0.3 as the payload spec changed in 10.0.4 and newer
-    if ([System.Version]($GenAIVersion -split '-')[0] -gt [System.Version]"10.0.3") {
-        # Create GenAI config yaml for 10.0.4 and newer
-        if($ToolsModel -eq 0) {
-            $GenAIPayload = @"
+    # Create GenAI config yaml
+    if($ToolsModel -eq 0) {
+        $GenAIPayload = @"
 ---
 product-name: genai
 product-properties:
@@ -2846,19 +2844,19 @@ product-properties:
       cf_access_enabled: true
       description: A high-performing open embedding model
       model_handles: $OllamaEmbedModel
-      name: embedding-models
+      name: embedding-model
       requests_per_minute: null
-      run_release_tests: false
-      tkgi_access_enabled: true
+      run_release_tests: true
+      tkgi_access_enabled: false
       tokens_per_minute: null
     - binding_credential_format: legacy
       cf_access_enabled: true
-      description: Models with chat capabilities
+      description: A model with chat capabilities
       model_handles: $OllamaChatModel
-      name: chat-models
+      name: chat-model
       requests_per_minute: null
-      run_release_tests: false
-      tkgi_access_enabled: true
+      run_release_tests: true
+      tkgi_access_enabled: false
       tokens_per_minute: null
   .errands.ollama_models:
     value:
@@ -2893,8 +2891,8 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
-        } else {
-                $GenAIPayload = @"
+    } else {
+        $GenAIPayload = @"
 ---
 product-name: genai
 product-properties:
@@ -2904,19 +2902,19 @@ product-properties:
       cf_access_enabled: true
       description: A high-performing open embedding model
       model_handles: $OllamaEmbedModel
-      name: embedding-models
+      name: embedding-model
       requests_per_minute: null
-      run_release_tests: false
-      tkgi_access_enabled: true
+      run_release_tests: true
+      tkgi_access_enabled: false
       tokens_per_minute: null
     - binding_credential_format: legacy
       cf_access_enabled: true
-      description: Models with chat and tool capabilities
+      description: A model with chat and tool capabilities
       model_handles: $OllamaChatToolsModel
-      name: chat-and-tools-models
+      name: chat-and-tools-model
       requests_per_minute: null
-      run_release_tests: false
-      tkgi_access_enabled: true
+      run_release_tests: true
+      tkgi_access_enabled: false
       tokens_per_minute: null
   .errands.ollama_models:
     value:
@@ -2983,103 +2981,6 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
-        }
-    } else {
-        # Create GenAI config yaml for 10.0.3
-        if($ToolsModel -eq 0) {
-            $GenAIPayload = @"
----
-product-name: genai
-product-properties:
-  .errands.ollama_models:
-    value:
-    - azs:
-      - $BOSHAZAssignment
-      model_capabilities:
-      - embedding
-      model_name: $OllamaEmbedModel
-      plan_name: nomic-embed-text
-      plan_description: A high-performing open embedding model
-      vm_type: cpu
-    - azs:
-      - $BOSHAZAssignment
-      model_capabilities:
-      - chat
-      model_name: $OllamaChatModel
-      vm_type: cpu
-  .properties.database_source.service_broker.name:
-    value: postgres
-  .properties.database_source.service_broker.plan_name:
-    value: on-demand-postgres-db
-network-properties:
-  network:
-    name: $BOSHNetworkAssignment
-  other_availability_zones:
-  - name: $BOSHAZAssignment
-  service_network:
-    name: $BOSHNetworkAssignment
-  singleton_availability_zone:
-    name: $BOSHAZAssignment
-"@
-        } else {
-            $GenAIPayload = @"
----
-product-name: genai
-product-properties:
-  .errands.ollama_models:
-    value:
-    - azs:
-      - $BOSHAZAssignment
-      model_name: $OllamaEmbedModel
-      model_capabilities:
-      - embedding
-      plan_name: nomic-embed-text
-      plan_description: A high-performing open embedding model
-      vm_type: cpu
-    - azs:
-      - $BOSHAZAssignment
-      model_name: $OllamaChatToolsModel
-      model_capabilities:
-      - chat
-      - tools
-      ollama_keep_alive: "-1"
-      ollama_num_parallel: 1
-      ollama_context_length: 131072
-      ollama_kv_cache_type: q4_0
-      ollama_flash_attention: true
-      plan_name: mistral-nemo
-      plan_description: mistral-nemo-12b-instruct-2407-q4_K_M with chat and tool capabilities
-      disk_type: "153600"
-      vm_type: cpu-2xlarge
-  .errands.vsphere_vm_types:
-    value:
-    - cpu: 8
-      ephemeral_disk: 65536
-      name: cpu
-      processing_technology: cpu
-      ram: 32768
-      root_disk: 25
-    - cpu: 16
-      ephemeral_disk: 65536
-      name: cpu-2xlarge
-      processing_technology: cpu
-      ram: 32768
-      root_disk: 25
-  .properties.database_source.service_broker.name:
-    value: postgres
-  .properties.database_source.service_broker.plan_name:
-    value: on-demand-postgres-db
-network-properties:
-  network:
-    name: $BOSHNetworkAssignment
-  other_availability_zones:
-  - name: $BOSHAZAssignment
-  service_network:
-    name: $BOSHNetworkAssignment
-  singleton_availability_zone:
-    name: $BOSHAZAssignment
-"@
-        }
     }
 
     $GenAIyaml = "genai-config.yaml"
