@@ -65,7 +65,7 @@ Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platf
 $OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.1.ova"
 $TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.1-build.2.pivotal"
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.0.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.1.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
