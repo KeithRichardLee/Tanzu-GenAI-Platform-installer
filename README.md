@@ -12,7 +12,7 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
 
 ## Prerequisites
 **VMware vSphere**
-  - ESXi host/cluster (ESXi v7.x or v8.x) with the following spare capacity...
+  - ESXi host/cluster (ESXi v7.x / v8.x / v9.x) with the following spare capacity...
     - Compute: ~51 vCPU, although only uses approx 5 GHz
     - Memory: ~85 GB
     - Storage: ~380 GB
@@ -455,9 +455,9 @@ The script was validated against the following versions...
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.1
 - **PowerCLI:** 13.3.0
-- **vCenter:** 8U3
 - **CF CLI:** 10.2
 - **cf-mcp-client:** 1.4.3
+- **vSphere:** 8U3 & 9.0
 
 ## Credits
 Shoutout to [William Lam](https://williamlam.com/) as used his Nested PKS script from 2018 as inspiration for this script.
