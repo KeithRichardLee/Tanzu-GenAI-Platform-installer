@@ -62,10 +62,10 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, VMware Postgres tile, VMware Tanzu GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.1.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.1-build.2.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.2.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.2-build.2.pivotal"
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.1.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.3.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
@@ -114,7 +114,7 @@ Update Tanzu Hub fields
 ```bash
 ### Install Tanzu Hub (global control plane)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.2.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.2.1.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -203,17 +203,22 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```bash
     sdk use maven 3.9.10
     ```
-- Download / clone git repos
+- Clone git repos
   ```bash
-  gh release download v1.4.3 --repo cpage-pivotal/cf-mcp-client -D cf-mcp-client
-  gh repo clone kirtiapte/bitcoin-mcp-server
+  git clone https://github.com/cpage-pivotal/cf-mcp-client
+  git clone https://github.com/kirtiapte/bitcoin-mcp-server
   ```
 
 ## Deploy chat app
 
-### Push the app to the platform
+### Build the app
 ```bash
 cd cf-mcp-client
+mvn clean package
+```
+
+### Push the app to the platform
+```bash
 cf push
 ```
 
@@ -445,18 +450,18 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.1.ova
-- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.1-build.2.pivotal
+- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.2.ova
+- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.2-build.2.pivotal
 - **VMware Postgres:** postgres-10.1.1-build.1.pivotal
-- **Tanzu GenAI:** genai-10.2.1.pivotal
+- **Tanzu GenAI:** genai-10.2.3.pivotal
 - **Healthwatch:** healthwatch-2.3.3-build.21.pivotal
 - **Healthwatch Exporter:** healthwatch-pas-exporter-2.3.3-build.21.pivotal
-- **Tanzu Hub:** tanzu-hub-10.2.0.pivotal
+- **Tanzu Hub:** tanzu-hub-10.2.1.pivotal
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.1
 - **PowerCLI:** 13.3.0
 - **CF CLI:** 10.2
-- **cf-mcp-client:** 1.4.3
+- **cf-mcp-client:** 1.5.1
 - **vSphere:** 8U3 & 9.0
 
 ## Credits
