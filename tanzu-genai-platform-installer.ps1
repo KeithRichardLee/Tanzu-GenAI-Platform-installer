@@ -2603,7 +2603,7 @@ if($setupTPCF -eq 1) {
 
     # Upload tile
     My-Logger "Uploading Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager (can take up to 15 minutes)..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$TPCFTile", "-r", "3600")
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$TPCFTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
@@ -2738,7 +2738,7 @@ if($setupPostgres -eq 1) {
 
     # Upload tile
     My-Logger "Uploading VMware Postgres tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$PostgresTile", "-r", "3600")
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$PostgresTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
@@ -2819,7 +2819,7 @@ if($setupGenAI -eq 1) {
 
     # Upload tile
     My-Logger "Uploading Tanzu GenAI tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$GenAITile", "-r", "3600")
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$GenAITile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
@@ -3038,7 +3038,7 @@ if($setupHealthwatch -eq 1) {
 
     # Upload Healthwatch tile
     My-Logger "Uploading Healthwatch tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HealthwatchTile", "-r", "3600")
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$HealthwatchTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
@@ -3048,7 +3048,7 @@ if($setupHealthwatch -eq 1) {
 
     # Upload Healthwatch Exporter tile
     My-Logger "Uploading Healthwatch Exporter tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HealthwatchExporterTile", "-r", "3600")
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$HealthwatchExporterTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
@@ -3137,7 +3137,7 @@ if($setupHub -eq 1) {
 
     # Upload tile
     My-Logger "Uploading Tanzu Hub tile to Tanzu Operations Manager (can take up to 15 minutes)..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "upload-product", "--product", "$HubTile", "-r", "3600")
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$HubTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
