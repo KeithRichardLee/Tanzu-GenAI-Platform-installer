@@ -33,7 +33,7 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
   - NTP service
 
   - Firewall
-    - Ability to reach ollama.com so Tanzu Platform can download AI models (Note: Airgapped is supported but not covered in this guide & script at present. Please see [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform-services/genai-on-tanzu-platform-for-cloud-foundry/10-2/ai-cf/tutorials-offline-model-support.html) for offline model support)
+    - Ability to reach registry.ollama.ai so Tanzu Platform can download AI models (Note: The script also supports airgapped / internet restricted environments, see "Advanced Config" section below for further details)
    
   - Certificates (optional)
     - By default, the installer creates a self-signed cert for TLS termination at the GoRouter. A user can provide their own cert if wished. See [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/security_config.html) for cert requirements. 
@@ -62,10 +62,10 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, VMware Postgres tile, VMware Tanzu GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.2.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.2-build.2.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.3.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.3-build.2.pivotal"
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.3.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.5.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
@@ -137,15 +137,34 @@ $KeyPath          = "/Users/Tanzu/certs/privkey.pem"
 
 AI models
 ```bash
-# Tanzu AI Solutions config 
+# Tanzu AI Solutions config
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatModel  = "gemma2:2b"
-
-# Deploy a model with chat and tools capabilities instead of just chat?  note; a vm will be created with 16 vCPU and 32 GB mem to run the model
-$ToolsModel           = $true
-$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
+$OllamaChatToolsModel = "gpt-oss:20b"
 ```
 
+Airgapped / internet restricted environment 
+```bash
+# Be default, this script pulls the above models from Ollama (registry.ollama.ai). For internet restricted environments, you can download the models 
+# separately using the links below and specify their location in the variables in the section below. This script will then create a MinIO object store, 
+# upload the models to it, so the installer can then pull the models from it rather than from the internet.
+#
+# Please note, the MinIO BOSH Release is not Broadcom software, it is licensed under the AGPL 3.0 https://www.gnu.org/licenses/agpl-3.0.en.html
+
+# Install MinIO BOSH Release (an object store for AI models in internet restricted envs)
+$InstallMinIO  = $true
+$MinioFolder   = "/Users/Tanzu/Downloads/minio-boshrelease"                                                        #Download / git clone https://github.com/kinjelom/minio-boshrelease.git
+$MinioURL      = "/Users/Tanzu/Downloads/minio-boshrelease/minio-boshrelease-3.0.0+minio.2025-04-03T14-56-28Z.tgz" #Download release from https://github.com/kinjelom/minio-boshrelease/releases/
+$MinioSHA      = "7156eb2aa6bdf5aa8ddb173c413ea796ceafcd25"                                                        #Retrieve SHA1 from https://github.com/kinjelom/minio-boshrelease/releases/
+$MinioVersion  = "3.0.0+minio.2025-04-03T14-56-28Z"
+$MinioUsername = "root"
+$MinioPassword = 'VMware1!'
+$MinioBucket   = "models"
+$EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/gpt-oss-20b.gguf
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b.txt"                                 #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/tanzu-modelfile-gpt-oss-20b.txt
+$BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
+$MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
+```
 
 ## Run the script
 - Open a powershell console eg `pwsh`
@@ -418,7 +437,7 @@ Below are the pre-checks the script performs...
   - System domain wildcard DNS entry is valid
   - Apps domain resolves to GoRouter IP
   - System domain resolves to GoRouter IP
-  - Connectivity to Ollama.com
+  - Connectivity to registry.ollama.ai
   - User provided cert and key exists
   - User provided cert is valid
 
@@ -450,10 +469,10 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.2.ova
-- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.2-build.2.pivotal
+- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.3.ova
+- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.3-build.2.pivotal
 - **VMware Postgres:** postgres-10.1.1-build.1.pivotal
-- **Tanzu GenAI:** genai-10.2.3.pivotal
+- **Tanzu GenAI:** genai-10.2.5.pivotal
 - **Healthwatch:** healthwatch-2.3.3-build.21.pivotal
 - **Healthwatch Exporter:** healthwatch-pas-exporter-2.3.3-build.21.pivotal
 - **Tanzu Hub:** tanzu-hub-10.2.1.pivotal
@@ -461,7 +480,7 @@ The script was validated against the following versions...
 - **Powershell:** 7.5.1
 - **PowerCLI:** 13.3.0
 - **CF CLI:** 10.2
-- **cf-mcp-client:** 1.5.1
+- **cf-mcp-client:** 2.0
 - **vSphere:** 8U3 & 9.0
 
 ## Credits

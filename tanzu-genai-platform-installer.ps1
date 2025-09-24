@@ -10,16 +10,17 @@
 # - Configure and deploy VMware Tanzu GenAI
 # - Configure and deploy VMware Tanzu Healthwatch & Healthwatch Exporter (optional)
 # - Configure and deploy VMware Tanzu Hub (optional)
+# - Configure and deploy MinIO object store (optional)
 #
 ############################################################################################
 
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.2.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.2-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.3.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.3-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.3.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.5.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -124,11 +125,29 @@ $InstallTanzuAI = $true
 
 # Tanzu AI Solutions config 
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatModel = "gemma2:2b"
+$OllamaChatToolsModel = "gpt-oss:20b"
 
-# Deploy a model with chat and tools capabilities instead of just chat?  note; a vm will be created with 16 vCPU and 32 GB mem to run the model
-$ToolsModel = $true
-$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
+# Internet Restricted Env?
+# Be default, this script pulls the above models from Ollama (registry.ollama.ai). For internet restricted environments, you can download the models 
+# separately using the links below and specify their location in the variables in the section below. This script will then create a MinIO object store, 
+# upload the models to it, so the installer can then pull the models from it rather than from the internet.
+#
+# Please note, the MinIO BOSH Release is not Broadcom software, it is licensed under the AGPL 3.0 https://www.gnu.org/licenses/agpl-3.0.en.html
+
+# Install MinIO BOSH Release (an object store for AI models in internet restricted envs)
+$InstallMinIO  = $false
+$MinioFolder   = "/Users/Tanzu/Downloads/minio-boshrelease"                                                        #Download / git clone https://github.com/kinjelom/minio-boshrelease.git
+$MinioURL      = "/Users/Tanzu/Downloads/minio-boshrelease/minio-boshrelease-3.0.0+minio.2025-04-03T14-56-28Z.tgz" #Download release from https://github.com/kinjelom/minio-boshrelease/releases/
+$MinioSHA      = "7156eb2aa6bdf5aa8ddb173c413ea796ceafcd25"                                                        #Retrieve SHA1 from https://github.com/kinjelom/minio-boshrelease/releases/
+$MinioVersion  = "3.0.0+minio.2025-04-03T14-56-28Z"
+$MinioUsername = "root"
+$MinioPassword = 'VMware1!'
+$MinioBucket   = "models"
+$EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/gpt-oss-20b.gguf
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b.txt"                                 #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/tanzu-modelfile-gpt-oss-20b.txt
+$BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
+$MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 
 ##############################
 
@@ -170,6 +189,12 @@ $ProductRequirements = @{
         CPUGHz = 10
         MemoryGB = 100
         StorageGB = 400
+    }
+    "Minio" = @{
+        IP = 1
+        CPUGHz = 1
+        MemoryGB = 1
+        StorageGB = 40
     }
 }
 
@@ -282,6 +307,7 @@ $deployOpsManager = 1
 $setupOpsManager = 1
 $setupBOSHDirector = 1
 $setupTPCF = 1
+$setupMinio = $InstallMinIO
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
 $setupHealthwatch = $InstallHealthwatch
@@ -309,7 +335,6 @@ Function My-Logger {
     # Write to console unless LogOnly switch is specified
     if (-not $LogOnly) {
         Write-Host -NoNewline -ForegroundColor White "[$timestamp]"
-        #Write-Host -NoNewline -ForegroundColor DarkGray " [$level]"
         Write-Host -ForegroundColor $color " $message"
     }
     
@@ -1249,7 +1274,8 @@ function Calculate-TotalRequirements {
         "TPCF" = $true
         "TanzuAI" = $InstallTanzuAI
         "HealthWatch" = $InstallHealthwatch
-        "Hub" = $InstallHub
+        "Hub" = $
+        "Minio" = $InstallMinIO
     }
 
     # Initialize totals
@@ -1484,6 +1510,337 @@ function Generate-SSHKey {
     }
 }
 
+function Set-BoshEnvFromOpsMan {
+    param(
+        [Parameter(Mandatory=$true)][string]$OpsManUrl,
+        [Parameter(Mandatory=$true)][string]$Username,
+        [Parameter(Mandatory=$true)][string]$Password,
+        [switch]$SkipTlsValidation,
+        [switch]$TestConnection
+    )
+
+    # Configure OM auth via env vars
+    $env:OM_TARGET   = $OpsManUrl
+    $env:OM_USERNAME = $Username
+    $env:OM_PASSWORD = $Password
+
+    $omArgs = @()
+    if ($SkipTlsValidation) { $omArgs += '-k' }
+
+    # Quick connectivity check
+    try {
+        $null = & om @omArgs products 2>$null
+        if ($LASTEXITCODE -ne 0) { My-Logger "OM connectivity check failed." -LogOnly }
+        My-Logger "OM connectivity check to $OpsManUrl passed" -LogOnly
+    } catch {
+        My-Logger "[Error] Failed to connect/authenticate to Ops Manager. Check URL/credentials." -level Error -color Red
+        Exit
+    }
+
+    # Fetch env script
+    $envScriptLines = & om @omArgs bosh-env 2>&1
+    if (-not $envScriptLines) {
+        My-Logger "[Error] Failed to retrieve environment from 'om bosh-env'." -level Error -color Red
+    }
+    # Normalize to a single string for consistent processing
+    $envScript = ($envScriptLines -join "`n")
+
+    # Detect format: PowerShell vs Bash
+    $isPowerShellStyle = $envScript -match '(?m)^\s*\$env:'
+    $isBashStyle       = $envScript -match '(?m)^\s*export\s+'
+
+    # Build the script to run in PowerShell
+    if ($isPowerShellStyle) {
+        # Already PowerShell (supports multi-line single-quoted certs)
+        $psScript = $envScript
+    } elseif ($isBashStyle) {
+        # Convert 'export NAME=VALUE' -> '$env:NAME = VALUE' (preserve quoting as-is)
+        $psScript = ($envScript -split "`r?`n" | ForEach-Object {
+            if ($_ -match '^\s*export\s+([^=]+)=(.+)$') {
+                '$env:{0} = {1}' -f $matches[1].Trim(), $matches[2].Trim()
+            }
+        }) -join "`n"
+        if ([string]::IsNullOrWhiteSpace($psScript)) {
+            My-Logger "[Error] Could not parse 'export' lines from 'om bosh-env'." -level Error -color Red
+            Exit
+        }
+    } else {
+        My-Logger "[Error] Unrecognized 'om bosh-env' output format." -level Error -color Red
+        Exit
+    }
+
+    # Ensure string & apply environment
+    $psScript = [string]$psScript
+    Invoke-Expression -Command $psScript
+
+    # Report what was set)
+    My-Logger "Set environment variables for BOSH CLI:" -LogOnly
+    $names = @(
+        # BOSH
+        "BOSH_ENVIRONMENT","BOSH_CLIENT","BOSH_CLIENT_SECRET","BOSH_CA_CERT",
+        "BOSH_ALL_PROXY","BOSH_GW_HOST","BOSH_GW_USER","BOSH_GW_PRIVATE_KEY","BOSH_GW_PASSPHRASE",
+        # CredHub
+        "CREDHUB_SERVER","CREDHUB_CLIENT","CREDHUB_SECRET","CREDHUB_CA_CERT"
+    )
+    $names |
+      Where-Object { [string]::IsNullOrEmpty([System.Environment]::GetEnvironmentVariable($_)) -eq $false } |
+      ForEach-Object { My-Logger "  $_" -LogOnly }
+
+
+    # Optional BOSH connectivity test
+    if ($TestConnection -and (Get-Command "bosh" -ErrorAction SilentlyContinue)) {
+        My-Logger "Testing BOSH CLI connection (bosh env)..." -LogOnly
+        $null = & bosh env
+        if ($LASTEXITCODE -ne 0) {
+            My-Logger "[Error] BOSH CLI connectivity test failed. The env is set, but the Director wasn't reachable from here." -level Error -color Red
+            Exit
+        }
+        My-Logger "BOSH CLI is ready." -LogOnly
+    }
+}
+
+function Create-MinioManifestFiles {
+
+    $manifestDir  = Join-Path $MinioFolder 'manifests'
+    $varsDir      = Join-Path $MinioFolder 'manifests/vars'
+    $manifestPath = Join-Path $manifestDir 'manifest.yml'
+    $varsPath     = Join-Path $varsDir 'minio-vars-file.yml'
+
+    # Ensure directories exist
+    New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $varsDir -Force | Out-Null
+
+
+    # File contents
+    $varsContent = @"
+minio_instances: 1
+minio_storage_class_standard: "EC:0"
+minio_vm_type: xlarge
+minio_disk_type: 102400
+
+minio_root_user: "$MinioUsername"
+minio_root_password: "$MinioPassword"
+
+minio_uri: minio.tanzu.lab
+"@
+
+    $manifestContent = @"
+---
+name: ((deployment_name))
+
+instance_groups:
+  - name: minio
+    instances: ((minio_instances))
+    networks: [ { name: $BOSHNetworkAssignment } ]
+    azs: [ $BOSHAZAssignment ]
+    vm_type: ((minio_vm_type))
+    persistent_disk_type: ((minio_disk_type))
+    stemcell: default
+    env: { persistent_disk_fs: xfs }
+    jobs:
+      - name: minio-server
+        release: minio
+        provides:
+          minio-server: { as: minio-link }
+        properties:
+          credential:
+            root_user: ((minio_root_user))
+            root_password: ((minio_root_password))
+          server_config:
+            MINIO_BROWSER_REDIRECT_URL: "https://((minio_uri))"
+            MINIO_STORAGE_CLASS_STANDARD: "((minio_storage_class_standard))"
+
+variables:
+- name: minio_root_user
+  type: password
+- name: minio_root_password
+  type: password
+
+releases:
+  - name: "minio"
+    version: "$MinioVersion"
+
+stemcells:
+  - alias: default
+    os: ubuntu-jammy
+    version: latest
+
+update:
+  canaries: 1
+  max_in_flight: 1
+  canary_watch_time: 10000-600000
+  update_watch_time: 10000-600000
+"@
+
+    # Write files (UTF-8)
+    Set-Content -Path $varsPath -Value $varsContent -Encoding UTF8
+    Set-Content -Path $manifestPath -Value $manifestContent -Encoding UTF8
+
+    My-Logger "MinIO manifests created:`n  $varsPath`n  $manifestPath" -LogOnly
+}
+
+function Import-MinioEnvFile {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        My-Logger "MinIO env file not found: $Path" -level Error -LogOnly
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    $lines = Get-Content -LiteralPath $Path -ErrorAction Stop
+    foreach ($line in $lines) {
+        if ($line -match '^\s*#' -or $line.Trim() -eq '') { continue }
+
+        # Match: optional "export", NAME, equals, VALUE (rest of line)
+        $m = [regex]::Match($line, '^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$')
+        if (-not $m.Success) { continue }
+
+        $name  = $m.Groups[1].Value
+        $value = $m.Groups[2].Value.Trim()
+
+        # Handle quoted vs unquoted values and inline comments
+        if ($value.StartsWith('"') -and $value.EndsWith('"')) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+        elseif ($value.StartsWith("'") -and $value.EndsWith("'")) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+        else {
+            # Strip unquoted inline comments
+            $hash = $value.IndexOf('#')
+            if ($hash -ge 0) { $value = $value.Substring(0, $hash).Trim() }
+        }
+
+        Set-Item -Path "Env:$name" -Value $value
+        My-Logger "Imported $name" -LogOnly
+    }
+}
+
+function Upload-BoshRelease {
+    param(
+        [string]$Name,
+        [string]$Sha1,
+        [string]$URL
+    )
+
+    My-Logger "Uploading $Name"
+    $uploadArgs = @('upload-release', '--sha1', $Sha1, $URL)
+    My-Logger "${BOSHCLI} $uploadArgs" -LogOnly
+    & $BOSHCLI @uploadArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "$Name successfully uploaded"
+
+}
+
+function Install-Minio {
+    param(
+        [string]$BoshReleaseRoot = $MinioFolder,
+        [string]$DeploymentName = "minio",
+        [string]$ManifestRelativePath = "manifests/manifest.yml",
+        [string]$VarsFileRelativePath = "manifests/vars/minio-vars-file.yml"
+    )
+
+    # "source" the env files (Bash-style) into PowerShell's process env
+    $envFiles = @(
+        (Join-Path $BoshReleaseRoot "src/blobs-versions.env"),
+        (Join-Path $BoshReleaseRoot "rel.env")
+    )
+    foreach ($f in $envFiles) { Import-MinioEnvFile -Path $f }
+
+    if (-not $env:REL_VERSION) {
+        My-Logger "MinIO REL_VERSION was not set by env files '$($envFiles -join "', '")'." -level Error -LogOnly
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Build absolute paths for manifest/vars
+    $manifestPath = Join-Path $BoshReleaseRoot $ManifestRelativePath
+    $varsFilePath = Join-Path $BoshReleaseRoot $VarsFileRelativePath
+
+    if (-not (Test-Path -LiteralPath $manifestPath)) { 
+        My-Logger "MinIO manifest not found: $manifestPath" -level Error -LogOnly
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+    if (-not (Test-Path -LiteralPath $varsFilePath)) { 
+        My Logger "MinIO vars file not found: $varsFilePath" -level Error -LogOnly
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Deploy minio bosh release
+    $deployArgs = @(
+        '-d', $DeploymentName,
+        'deploy', $manifestPath,
+        '-v', "deployment_name=$DeploymentName",
+        '-v', "minio_version=$($env:REL_VERSION)",
+        "--vars-file=$varsFilePath",
+        '--no-redact',
+        '--fix',
+        '--non-interactive'
+    )
+
+    My-Logger "Installing MinIO BOSH Release (can take up to 2 minutes)..."
+    My-Logger "${BOSHCLI} $deployArgs" -LogOnly
+    & $BOSHCLI @deployArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "MinIO BOSH Release successfully installed"
+}
+
+function Create-MinioBucket {
+    param (
+        [string]$AliasName,
+        [string]$ServerUrl,
+        [string]$AccessKey,
+        [string]$SecretKey,
+        [string]$BucketName
+    )
+    
+    My-Logger "Set MC alias" -LogOnly
+    $aliasArgs = @('alias', 'set', $AliasName, $ServerUrl, $AccessKey, $SecretKey, '--insecure')
+    My-Logger "${MCCLI} $aliasArgs" -LogOnly
+    & $MCCLI @aliasArgs 2>&1 >> $verboseLogFile
+    
+    My-Logger "Create MinIO bucket called $BucketName" -LogOnly
+    $mbArgs = @('mb', "$AliasName/$BucketName")
+    My-Logger "${MCCLI} $mbArgs" -LogOnly
+    & $MCCLI @mbArgs 2>&1 >> $verboseLogFile
+    
+    My-Logger "Set anonymous read access for bucket $BucketName" -LogOnly
+    $accessArgs = @('anonymous', 'set', 'download', "$AliasName/$BucketName")
+    My-Logger "${MCCLI} $accessArgs" -LogOnly
+    & $MCCLI @accessArgs 2>&1 >> $verboseLogFile
+
+}
+
+function Upload-Model {
+    param (
+        [string]$AliasName,
+        [string]$BucketName,
+        [string]$ModelPath
+    )
+    
+    My-Logger "Upload model" -LogOnly
+    $cpArgs = @('cp', $ModelPath, "$AliasName/$BucketName")
+    My-Logger "${MCCLI} $cpArgs" -LogOnly
+    My-Logger "Uploading $(Split-Path $ModelPath -Leaf) to MinIO bucket"
+    & $MCCLI @cpArgs 2>&1 >> $verboseLogFile
+    My-Logger "Upload complete"
+
+}
+
 if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor Magenta "`nPlease confirm the following configuration will be deployed:`n"
 
@@ -1599,13 +1956,8 @@ if($confirmDeployment -eq 1) {
         Write-Host -ForegroundColor White $BOSHNetworkAssignment
         Write-Host -NoNewline -ForegroundColor Green "Ollama embedding model: "
         Write-Host -ForegroundColor White $OllamaEmbedModel
-        if ($ToolsModel) {
-            Write-Host -NoNewline -ForegroundColor Green "Ollama chat & tools model: "
-            Write-Host -ForegroundColor White $OllamaChatToolsModel
-        } else {
-            Write-Host -NoNewline -ForegroundColor Green "Ollama chat model: "
-            Write-Host -ForegroundColor White $OllamaChatModel
-        }
+        Write-Host -NoNewline -ForegroundColor Green "Ollama chat & tools model: "
+        Write-Host -ForegroundColor White $OllamaChatToolsModel
     }
 
     if ($InstallHealthwatch) {
@@ -1648,6 +2000,20 @@ if($preCheck -eq 1) {
     My-Logger "Validating if OM CLI exists at $OMCLI" -LogOnly
     Run-Test -TestName "Files: OM CLI exists" -TestCode {
         if (Test-Path $OMCLI) { return $true } else { return "Files: Unable to find $OMCLI" }
+    }
+
+    if ($InstallMinIO -eq $true) {
+        # Verify if BOSH CLI exists
+        My-Logger "Validating if BOSH CLI exists at $BOSHCLI" -LogOnly
+        Run-Test -TestName "Files: BOSH CLI exists" -TestCode {
+            if (Test-Path $BOSHCLI) { return $true } else { return "Files: Unable to find $BOSHCLI" }
+        }
+
+        # Verify if MinIO Client (MC) CLI exists
+        My-Logger "Validating if MinIO Client (MC) CLI exists at $MCCLI" -LogOnly
+        Run-Test -TestName "Files: MinIO Client (MC) CLI exists" -TestCode {
+            if (Test-Path $MCCLI) { return $true } else { return "Files: Unable to find $MCCLI" }
+        }
     }
 
     # Verify if Tanzu Operations Manager OVA exists
@@ -1699,6 +2065,38 @@ if($preCheck -eq 1) {
         My-Logger "Validating if Tanzu Hub tile file exists at $HubTile" -LogOnly
         Run-Test -TestName "Files: Tanzu Hub tile file exists" -TestCode {
             if (Test-Path $HubTile) { return $true } else { return "Files: Unable to find $HubTile" }
+        }
+    }
+
+    if ($InstallMinIO -eq $true) {
+        # Verify if MinIO BOSH Release folder exists
+        My-Logger "Validating if MinIO BOSH Release folder exists at $MinioFolder" -LogOnly
+        Run-Test -TestName "Files: MinIO BOSH Release folder exists" -TestCode {
+            if (Test-Path $MinioFolder) { return $true } else { return "Files: Unable to find $MinioFolder" }
+        }
+
+        # Verify if MinIO BOSH Release asset exists
+        My-Logger "Validating if MinIO BOSH Release asset exists at $MinioURL" -LogOnly
+        Run-Test -TestName "Files: MinIO BOSH Release asset exists" -TestCode {
+            if (Test-Path $MinioURL) { return $true } else { return "Files: Unable to find $MinioURL" }
+        }
+
+        # Verify if embedding model file exists
+        My-Logger "Validating if Embedding model file exists at $EmbedModelPath" -LogOnly
+        Run-Test -TestName "Files: Embedding model file exists" -TestCode {
+            if (Test-Path $EmbedModelPath) { return $true } else { return "Files: Unable to find $EmbedModelPath" }
+        }
+
+        # Verify if Chat & Tools model file exists
+        My-Logger "Validating if Chat & Tools model file exists at $ChatToolsModelPath" -LogOnly
+        Run-Test -TestName "Files: Chat & Tools model file exists" -TestCode {
+            if (Test-Path $ChatToolsModelPath) { return $true } else { return "Files: Unable to find $ChatToolsModelPath" }
+        }
+
+        # Verify if Chat & Tools model config file exists
+        My-Logger "Validating if Chat & Tools model config file exists at $ChatToolsModelFilePath" -LogOnly
+        Run-Test -TestName "Files: Chat & Tools model config file exists" -TestCode {
+            if (Test-Path $ChatToolsModelFilePath) { return $true } else { return "Files: Unable to find $ChatToolsModelFilePath" }
         }
     }
 
@@ -1959,18 +2357,20 @@ if($preCheck -eq 1) {
         }
     }
 
-    # Verify connectivity to ollama.com
-    My-Logger "Validating ollama.com connectivity " -LogOnly
-    Run-Test -TestName "Network: ollama.com connectivity" -TestCode {
-        try {
-            $ollamaResult = Invoke-WebRequest -Uri https://ollama.com -Method GET
-            if ($ollamaResult.StatusCode -eq 200) {
-                return $true
-            } else {
-                return "Network: Cannot reach ollama.com. Status code: $($vcenterResult.StatusCode)"
+    # Verify connectivity to ollama.ai if not using offline model storage
+    if ($InstallMinIO -eq $false) {
+        My-Logger "Validating ollama.ai connectivity " -LogOnly
+        Run-Test -TestName "Network: ollama.ai connectivity" -TestCode {
+            try {
+                $ollamaResult = Invoke-WebRequest -Uri https://ollama.ai -Method GET
+                if ($ollamaResult.StatusCode -eq 200) {
+                    return $true
+                } else {
+                    return "Network: Cannot reach ollama.ai. Status code: $($vcenterResult.StatusCode)"
+                }
+            } catch {
+                return "Cannot reach ollama.ai. Error: $($_.Exception.Message)"
             }
-        } catch {
-            return "Cannot reach ollama.com. Error: $($_.Exception.Message)"
         }
     }
 
@@ -2803,6 +3203,58 @@ network-properties:
     My-Logger "Tanzu Platform for Cloud Foundry and VMware Postgres successfully installed"
 }
 
+if($setupMinio -eq 1) {
+
+    # Create MinIO manifest files with env specific paramters
+    Create-MinioManifestFiles
+
+    # Retrieve BOSH env parameters from Ops Man and set them
+    Set-BoshEnvFromOpsMan `
+      -OpsManUrl "https://$OpsManagerFQDN" `
+      -Username "admin" `
+      -Password $OpsManagerAdminPassword `
+      -SkipTlsValidation `
+      -TestConnection
+
+    # Upload Minio BOSH Release to the BOSH Director
+    Upload-BoshRelease `
+      -Name 'MinIO BOSH Release' `
+      -Sha1 $MinioSHA `
+      -URL $MinioURL
+
+    Install-Minio
+
+    # Retieve MinIO BOSH Release VM IP so can update DNS
+    $boshArgs = @('-d', 'minio', 'vms', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $MinioIP = (& $BOSHCLI @boshArgs | ConvertFrom-Json).Tables[0].Rows `
+        | Select-Object -ExpandProperty ips `
+        | ForEach-Object { ($_ -split '[,\s]+')[0] } `
+        | Select-Object -First 1
+     My-Logger "MinIO BOSH Release VM IP: $MinioIP" -LogOnly
+
+    # Create MinIO bucket and set anonymous read access
+     Create-MinioBucket `
+       -alias 'minio' `
+       -server "http://$($MinioIP):9000" `
+       -accesskey $MinioUsername `
+       -secretkey $MinioPassword `
+       -bucket $MinioBucket
+
+    #Upload embeddding model to MinIO bucket
+    Upload-Model `
+      -alias 'minio' `
+      -bucket $MinioBucket `
+      -model $EmbedModelPath
+
+    #Upload chat tools model to MinIO bucket
+    Upload-Model `
+      -alias 'minio' `
+      -bucket $MinioBucket `
+      -model $ChatToolsModelPath
+
+}
+
 if($setupGenAI -eq 1) {
 
     # Verify if GenAI is already installed
@@ -2837,67 +3289,38 @@ if($setupGenAI -eq 1) {
         exit
     }
 
-    # Create GenAI config yaml
-    if($ToolsModel -eq 0) {
-        $GenAIPayload = @"
----
-product-name: genai
-product-properties:
-  .controller.plans:
-    value:
-    - binding_credential_format: legacy
-      cf_access_enabled: true
-      description: A high-performing open embedding model
-      model_handles: $OllamaEmbedModel
-      name: embedding-model
-      requests_per_minute: null
-      run_release_tests: true
-      tkgi_access_enabled: false
-      tokens_per_minute: null
-    - binding_credential_format: legacy
-      cf_access_enabled: true
-      description: A model with chat capabilities
-      model_handles: $OllamaChatModel
-      name: chat-model
-      requests_per_minute: null
-      run_release_tests: true
-      tkgi_access_enabled: false
-      tokens_per_minute: null
-  .errands.ollama_models:
-    value:
-    - azs:
-      - $BOSHAZAssignment
-      handle: $OllamaEmbedModel
-      model_capabilities:
-      - embedding
-      model_name: $OllamaEmbedModel
-      vm_type: cpu
-    - azs:
-      - $BOSHAZAssignment
-      handle: $OllamaChatModel
-      model_capabilities:
-      - chat
-      model_name: $OllamaChatModel
-      vm_type: cpu
-  .properties.database_source:
-    selected_option: service_broker
-    value: service_broker
-  .properties.database_source.service_broker.name:
-    value: postgres
-  .properties.database_source.service_broker.plan_name:
-    value: on-demand-postgres-db
-network-properties:
-  network:
-    name: $BOSHNetworkAssignment
-  other_availability_zones:
-  - name: $BOSHAZAssignment
-  service_network:
-    name: $BOSHNetworkAssignment
-  singleton_availability_zone:
-    name: $BOSHAZAssignment
+    # Configure payload depending if installing in an internet restricted env or not
+    if ($InstallMinIO -eq $true) {
+
+        # Set offline location for models if installing in internet restricted env
+        $EmbedModelUrl = "http://${MinioIP}:9000/models/$(Split-Path $EmbedModelPath -Leaf)"
+        $ChatToolsModelUrl = "http://${MinioIP}:9000/models/$(Split-Path $ChatToolsModelPath -Leaf)"
+
+        # Embedding ModelFile config
+        $EmbedModelFile = @'
+|-
+        TEMPLATE {{ .Prompt }}
+        PARAMETER num_ctx 8192
+'@
+
+        # Chat & Tools ModelFile config
+        $ModelFileContent = Get-Content -Path $ChatToolsModelFilePath -Raw
+        $IndentedModelFileContent = ($ModelFileContent -split "`r?`n" | ForEach-Object { "        $_" }) -join "`n"
+        $ChatToolsModelFile = @"
+|-
+$IndentedModelFileContent
 "@
+
     } else {
-        $GenAIPayload = @"
+        # For internet connected sites, set to null as the GenAI tile will pull the model and modelfile directly from Ollama (registry.ollama.ai)
+        $EmbedModelUrl = 'null'
+        $ChatToolsModelUrl = 'null'
+        $EmbedModelFile = 'null'
+        $ChatToolsModelFile = 'null'
+    }
+
+    # Create GenAI config yaml
+    $GenAIPayload = @"
 ---
 product-name: genai
 product-properties:
@@ -2929,13 +3352,15 @@ product-properties:
       instances: 1
       model_capabilities:
       - embedding
+      model_modelfile: $EmbedModelFile
       model_name: $OllamaEmbedModel
+      model_url: $EmbedModelUrl
       ollama_context_length: 2048
       ollama_flash_attention: false
-      ollama_keep_alive: 60m
+      ollama_keep_alive: "-1"
       ollama_kv_cache_type: f16
       ollama_load_timeout: 5m
-      ollama_num_parallel: 0
+      ollama_num_parallel: 1
       vm_type: cpu
       wire_format: openai
     - azs:
@@ -2946,11 +3371,13 @@ product-properties:
       model_capabilities:
       - chat
       - tools
+      model_modelfile: $ChatToolsModelFile
       model_name: $OllamaChatToolsModel
+      model_url: $ChatToolsModelUrl
       ollama_context_length: 131072
-      ollama_flash_attention: true
+      ollama_flash_attention: false
       ollama_keep_alive: "-1"
-      ollama_kv_cache_type: q4_0
+      ollama_kv_cache_type: f16
       ollama_load_timeout: 5m
       ollama_num_parallel: 1
       vm_type: cpu-2xlarge
@@ -2986,7 +3413,6 @@ network-properties:
   singleton_availability_zone:
     name: $BOSHAZAssignment
 "@
-    }
 
     $GenAIyaml = "genai-config.yaml"
     $GenAIPayload > $GenAIyaml
@@ -3274,5 +3700,13 @@ if ($setupTPCF){
         My-Logger " "
         My-Logger "Tanzu Hub"
         My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN here https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/install-install.html#access-tanzu-hub"
+    }
+
+    If ($InstallMinio){
+        My-Logger " "
+        My-Logger "Minio Object Store"
+        My-Logger "- URL: http://${MinioIP}:9001"
+        My-Logger "- Username: $MinioUsername"
+        My-Logger "- Password: $MinioPassword"
     }
 }
