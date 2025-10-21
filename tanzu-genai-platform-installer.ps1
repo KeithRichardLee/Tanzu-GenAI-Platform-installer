@@ -125,7 +125,7 @@ $InstallTanzuAI = $true
 
 # Tanzu AI Solutions config 
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatToolsModel = "gpt-oss:20b"
+$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 
 # Internet Restricted Env?
 # Be default, this script pulls the above models from Ollama (registry.ollama.ai). For internet restricted environments, you can download the models 
@@ -3375,9 +3375,9 @@ product-properties:
       model_name: $OllamaChatToolsModel
       model_url: $ChatToolsModelUrl
       ollama_context_length: 131072
-      ollama_flash_attention: false
+      ollama_flash_attention: true
       ollama_keep_alive: "-1"
-      ollama_kv_cache_type: f16
+      ollama_kv_cache_type: q4_0
       ollama_load_timeout: 5m
       ollama_num_parallel: 1
       vm_type: cpu-2xlarge

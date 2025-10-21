@@ -139,7 +139,7 @@ AI models
 ```bash
 # Tanzu AI Solutions config
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatToolsModel = "gpt-oss:20b"
+$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
 ```
 
 Airgapped / internet restricted environment 
@@ -160,8 +160,8 @@ $MinioUsername = "root"
 $MinioPassword = 'VMware1!'
 $MinioBucket   = "models"
 $EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
-$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/gpt-oss-20b.gguf
-$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b.txt"                                 #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/tanzu-modelfile-gpt-oss-20b.txt
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"                          #Download from https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/resolve/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/mistral-nemo-instruct-2407-Q4_K_M_modlefile.txt"                 #Download from https://huggingface.co/keithrichardlee/mistral-nemo/resolve/main/mistral-nemo-12b-instruct-2407-q4_K_M_modelfile.txt
 $BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
 $MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 ```
