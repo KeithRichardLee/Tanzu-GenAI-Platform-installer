@@ -368,17 +368,17 @@ Congratulations, you have come to the end of this quick start guide. We have bar
 ## Stop / Start Tanzu Platform
 - After a successful install, you can stop / shutdown the whole Tanzu Platform should the scenario arise eg need to release resources or shutdown the host(s) eg in a home lab. You can then also start it back up.
 - The script will...
- - Document the environment
- - Perform a health check
- - Disable resurrector (if enabled)
- - Shutdown the platform deployments
- - Shutdown BOSH Director and Ops Manager
+  - Document the environment
+  - Perform a health check
+  - Disable resurrector (if enabled)
+  - Shutdown the platform deployments
+  - Shutdown BOSH Director and Ops Manager
 
  - And for start / power-up...
-  - Start Ops Manager and BOSH Director
-  - Unlock Ops Manager
-  - Start the platform deployments
-  - Perform a health check
+   - Start Ops Manager and BOSH Director
+   - Unlock Ops Manager
+   - Start the platform deployments
+   - Perform a health check
 
 - To stop / shutdown the platform
 ```bash
