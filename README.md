@@ -382,12 +382,12 @@ Congratulations, you have come to the end of this quick start guide. We have bar
 
 - To stop / shutdown the platform
 ```bash
-.\tanzu-ai-starter-kit-installer-dev.ps1 stop
+.\tanzu-ai-starter-kit-installer.ps1 stop
 ```
 
 - To start / power-up the platform
 ```bash
-.\tanzu-ai-starter-kit-installer-dev.ps1 start
+.\tanzu-ai-starter-kit-installer.ps1 start
 ```
 
 ## Resources
