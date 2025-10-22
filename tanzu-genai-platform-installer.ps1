@@ -1,3 +1,12 @@
+param(
+  [Parameter(Position=0)]
+  [ValidateSet('Stop','Start')]
+  [string]$Action,
+
+  [switch]$Stop,
+  [switch]$Start
+)
+
 # PowerShell script which results in the deployment of VMware Tanzu Platform with GenAI capabilities
 # 
 # Script will... 
@@ -11,6 +20,9 @@
 # - Configure and deploy VMware Tanzu Healthwatch & Healthwatch Exporter (optional)
 # - Configure and deploy VMware Tanzu Hub (optional)
 # - Configure and deploy MinIO object store (optional)
+#
+# Additional script functionality...
+# - run the script with "stop" or "start" to stop / start the whole platform
 #
 ############################################################################################
 
@@ -144,8 +156,8 @@ $MinioUsername = "root"
 $MinioPassword = 'VMware1!'
 $MinioBucket   = "models"
 $EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
-$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/gpt-oss-20b.gguf
-$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b.txt"                                 #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/tanzu-modelfile-gpt-oss-20b.txt
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"                          #Download from https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/resolve/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/mistral-nemo-instruct-2407-Q4_K_M_modelfile.txt"                 #Download from https://huggingface.co/keithrichardlee/mistral-nemo/resolve/main/mistral-nemo-12b-instruct-2407-q4_K_M_modelfile.txt
 $BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
 $MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 
@@ -317,8 +329,6 @@ $ignoreWarnings = $false
 ############################################################################################
 #### DO NOT EDIT BEYOND HERE ####
 
-$StartTime = Get-Date
-
 Function My-Logger {
     param(
     [Parameter(Mandatory=$true)]
@@ -334,7 +344,7 @@ Function My-Logger {
     
     # Write to console unless LogOnly switch is specified
     if (-not $LogOnly) {
-        Write-Host -NoNewline -ForegroundColor White "[$timestamp]"
+        Write-Host -NoNewline -ForegroundColor White "[$timeStamp]"
         Write-Host -ForegroundColor $color " $message"
     }
     
@@ -1529,16 +1539,23 @@ function Set-BoshEnvFromOpsMan {
 
     # Quick connectivity check
     try {
-        $null = & om @omArgs products 2>$null
-        if ($LASTEXITCODE -ne 0) { My-Logger "OM connectivity check failed." -LogOnly }
-        My-Logger "OM connectivity check to $OpsManUrl passed" -LogOnly
-    } catch {
-        My-Logger "[Error] Failed to connect/authenticate to Ops Manager. Check URL/credentials." -level Error -color Red
-        Exit
+        $output = & $OMCLI @omArgs products 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            My-Logger "OM connectivity check to $OpsManUrl passed" -LogOnly
+        } else {
+            My-Logger "[Error] OM connectivity check failed (exit code $LASTEXITCODE). Output:`n$output" -level Error -LogOnly
+            My-Logger "[Error] OM connectivity check failed. Tanzu Ops Manager may already be powered off. See log for details" -level Error -color Red
+            Exit
+        }
     }
+    catch {
+        My-Logger "[Error] Failed to invoke '$OMCLI' or authenticate to Ops Manager. $($_.Exception.Message)" -level Error -LogOnly
+        My-Logger "[Error] Failed to invoke '$OMCLI' or authenticate to Ops Manager. See log for details" -level Error -color Red
+        Exit
+}
 
     # Fetch env script
-    $envScriptLines = & om @omArgs bosh-env 2>&1
+    $envScriptLines = & $OMCLI @omArgs bosh-env 2>&1
     if (-not $envScriptLines) {
         My-Logger "[Error] Failed to retrieve environment from 'om bosh-env'." -level Error -color Red
     }
@@ -1840,6 +1857,1057 @@ function Upload-Model {
     My-Logger "Upload complete"
 
 }
+
+function Stop-Deployments {
+    param(
+        [string]$DeploymentList,
+        
+        # Use -Hard to perform a hard stop (power off VMs). Omit for just process stop
+        [switch]$Hard
+    )
+
+    # Split into names (by whitespace), drop empties
+    $names = $DeploymentList -split '\s+' | Where-Object { $_ }
+
+    # Define buckets in desired priority order
+    $buckets = [ordered]@{
+        'other'             = @()
+        'hub-'              = @()
+        'genai-'            = @()
+        'genai-models'      = @()
+        'service-instance_' = @()
+        'postgres-'         = @()
+        'cf-'               = @()
+    }
+
+    foreach ($n in $names) {
+        if     ($n.StartsWith('cf-'))               { $buckets['cf-']               += $n }
+        elseif ($n.StartsWith('postgres-'))         { $buckets['postgres-']         += $n }
+        elseif ($n.StartsWith('service-instance_')) { $buckets['service-instance_'] += $n }
+        elseif ($n.StartsWith('genai-models'))      { $buckets['genai-models']      += $n }
+        elseif ($n.StartsWith('genai-'))            { $buckets['genai-']            += $n }
+        elseif ($n.StartsWith('hub-'))              { $buckets['hub-']              += $n }
+        else                                        { $buckets['other']             += $n }
+    }
+
+    # Build final processing list in stop order
+    $toProcess = @()
+    $toProcess += $buckets['other']
+    $toProcess += $buckets['hub-']
+    $toProcess += $buckets['genai-']
+    $toProcess += $buckets['genai-models']
+    $toProcess += $buckets['service-instance_']
+    $toProcess += $buckets['postgres-']
+    $toProcess += $buckets['cf-']
+
+    foreach ($d in $toProcess) {
+        if ($Hard) { My-Logger "  Stopping deployment $d" }
+            else { My-Logger  "  Stopping processes for deployment $d" }
+        $boshArgs = @('--deployment', $d, '--non-interactive', 'stop')
+        if ($Hard) { $boshArgs += '--hard' }
+        if ($d.StartsWith('hub-')) { $boshArgs += '--skip-drain' } #pre-stop script fails for hub, to be further investigated, skip for now
+        My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+        & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+        if ($LASTEXITCODE -ne 0) {
+            My-Logger "bosh stop failed for deployment '$d' (exit $LASTEXITCODE)"
+        }
+    }
+}
+
+function Start-Deployments {
+    param(
+        [string]$DeploymentList
+    )
+
+    # Split into names (by whitespace), drop empties
+    $names = $DeploymentList -split '\s+' | Where-Object { $_ }
+
+    # Define buckets in desired priority order
+    $buckets = [ordered]@{
+        'cf-'               = @()
+        'postgres-'         = @()
+        'service-instance_' = @()
+        'genai-models'      = @()
+        'genai-'            = @()
+        'hub-'              = @()
+        'other'             = @()
+    }
+
+    foreach ($n in $names) {
+        if     ($n.StartsWith('cf-'))               { $buckets['cf-']               += $n }
+        elseif ($n.StartsWith('postgres-'))         { $buckets['postgres-']         += $n }
+        elseif ($n.StartsWith('service-instance_')) { $buckets['service-instance_'] += $n }
+        elseif ($n.StartsWith('genai-models'))      { $buckets['genai-models']      += $n }
+        elseif ($n.StartsWith('genai-'))            { $buckets['genai-']            += $n }
+        elseif ($n.StartsWith('hub-'))              { $buckets['hub-']              += $n }
+        else                                        { $buckets['other']             += $n }
+    }
+
+    # Build final processing list in REVERSE of the stop order
+    $toProcess = @()
+    $toProcess += $buckets['cf-']
+    $toProcess += $buckets['postgres-']
+    $toProcess += $buckets['service-instance_']
+    $toProcess += $buckets['genai-models']
+    $toProcess += $buckets['genai-']
+    $toProcess += $buckets['hub-']
+    $toProcess += $buckets['other']
+
+    foreach ($d in $toProcess) {
+        My-Logger "  Starting deployment: $d"
+        $boshArgs = @('--deployment', $d, '--non-interactive', 'start')
+        My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+        & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+        if ($LASTEXITCODE -ne 0) {
+            My-Logger "bosh start failed for deployment '$d' (exit $LASTEXITCODE)"
+        }
+    }
+}
+
+function Stop-GuestVm {
+    [CmdletBinding()]
+    param(
+        [string]$VMName,
+        # Max seconds to wait after requesting guest shutdown
+        [int]$TimeoutSec = 600,
+        # If set, will hard power off (Stop-VM -Kill) when Tools isn't running or timeout expires
+        [switch]$AllowHardStop,
+        # If set, wait for the VM to reach PoweredOff; otherwise return immediately after issuing the stop
+        [switch]$WaitForPowerOff
+    )
+
+    # Ensure we’re connected to vCenter
+    $connected = Get-VIServer $VIServer -User $VIUsername -Password $VIPassword -ErrorAction SilentlyContinue | Where-Object IsConnected
+    if (-not $connected) {
+        Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
+    }
+
+    # Resolve VM (exact name preferred; guard against multiple matches)
+    $vms = Get-VM -Name $VMName -ErrorAction SilentlyContinue
+    if (-not $vms) { throw "No VM found with name '$VMName'." }
+    if ($vms.Count -gt 1) { throw "Multiple VMs match '$VMName': $($vms.Name -join ', ')" }
+    $vm = $vms
+
+    $target = [VMware.VimAutomation.ViCore.Types.V1.Inventory.PowerState]::PoweredOff
+
+    # Already off? done.
+    if ($vm.PowerState -eq $target) {
+        My-Logger "VM '$($vm.Name)' is already PoweredOff."
+        return $vm
+    }
+
+    # Helper: wait for PoweredOff with a deadline
+    function Wait-VmPoweredOff {
+        param([Parameter(Mandatory=$true)]$Vm,[int]$Timeout=300)
+        $deadline = (Get-Date).AddSeconds($Timeout)
+        do {
+            Start-Sleep -Seconds 5
+            $Vm = Get-VM -Id $Vm.Id -ErrorAction Stop
+        } while ($Vm.PowerState -ne $target -and (Get-Date) -lt $deadline)
+        return $Vm
+    }
+
+    $toolsStatus = $vm.ExtensionData.Guest.ToolsStatus
+
+    if ($toolsStatus -match 'toolsOk|toolsOld') {
+        My-Logger "  Requesting guest OS shutdown for $($vm.Name)..."
+        Shutdown-VMGuest -VM $vm -Confirm:$false | Out-Null
+
+        if ($WaitForPowerOff) {
+            # Wait for graceful shutdown
+            $vm = Wait-VmPoweredOff -Vm $vm -Timeout $TimeoutSec
+            if ($vm.PowerState -ne $target) {
+                if ($AllowHardStop) {
+                    My-Logger "Graceful shutdown timed out for '$($vm.Name)'. Forcing hard power off..."
+                    Stop-VM -VM $vm -Kill -Confirm:$false | Out-Null
+                    $vm = Wait-VmPoweredOff -Vm $vm -Timeout 120
+                } else {
+                    throw "Timed out waiting for '$($vm.Name)' to power off after $TimeoutSec seconds."
+                }
+            }
+        }
+        else {
+            # Not waiting—return immediately after issuing the guest shutdown
+            return $vm
+        }
+    } else {
+        # Tools not running
+        if ($AllowHardStop) {
+            My-Logger "VMware Tools not running on '$($vm.Name)'. Forcing hard power off..."
+            Stop-VM -VM $vm -Kill -Confirm:$false | Out-Null
+            if ($WaitForPowerOff) {
+                $vm = Wait-VmPoweredOff -Vm $vm -Timeout 120
+            } else {
+                return $vm
+            }
+        } else {
+            throw "VMware Tools is not running on '$($vm.Name)'; cannot perform guest OS shutdown. Rerun with -AllowHardStop to force power off."
+        }
+    }
+
+    if ($vm.PowerState -ne $target) {
+        throw "Failed to power off '$($vm.Name)'. Current state: $($vm.PowerState)"
+    }
+
+    My-Logger "  VM '$($vm.Name)' is PoweredOff."
+    return $vm
+}
+
+function Start-GuestVm {
+    param(
+        # Display name of the VM in vCenter
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$VMName,
+
+        # Max seconds to wait for the VM to be PoweredOn
+        [int]$TimeoutSec = 600,
+
+        # After power-on, optionally wait for an IPv4 address to appear
+        [switch]$WaitForIP
+    )
+
+    # Ensure we’re connected to vCenter
+    $connected = Get-VIServer $VIServer -User $VIUsername -Password $VIPassword -ErrorAction SilentlyContinue | Where-Object IsConnected
+    if (-not $connected) {
+        Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
+    }
+
+    # Resolve VM (exact name; guard against multiple matches)
+    $vms = Get-VM -Name $VMName -ErrorAction SilentlyContinue
+    if (-not $vms) { 
+        My-Logger "[Error] No VM found with name '$VMName'." -color Red -level Error
+        exit
+    }
+    if ($vms.Count -gt 1) { 
+        My-Logger "[Error] Multiple VMs match '$VMName': $($vms.Name -join ', ')" -color Red -level Error
+        exit
+    }
+    $vm = $vms
+
+    $poweredOn = [VMware.VimAutomation.ViCore.Types.V1.Inventory.PowerState]::PoweredOn
+
+    # If already on, log and exit
+    if ($vm.PowerState -eq $poweredOn) {
+        My-Logger "  VM '$($vm.Name)' is already powered on. Skipping."
+        return
+    }
+    
+    # Power on
+    My-Logger "  Powering on VM '$($vm.Name)'..."
+    Start-VM -VM $vm -Confirm:$false | Out-Null
+
+    # Helper: refresh VM until condition or timeout
+    function Wait-Until {
+        param(
+            [Parameter(Mandatory=$true)] [ScriptBlock]$Condition,
+            [Parameter(Mandatory=$true)] $Vm,
+            [int]$Timeout = 300,
+            [int]$IntervalSec = 5
+        )
+        $deadline = (Get-Date).AddSeconds($Timeout)
+        do {
+            Start-Sleep -Seconds $IntervalSec
+            $script:vm = Get-VM -Id $Vm.Id -ErrorAction Stop
+        } while (-not (& $Condition) -and (Get-Date) -lt $deadline)
+    }
+
+    # Wait for PoweredOn
+    Wait-Until -Vm $vm -Timeout $TimeoutSec -Condition { $script:vm.PowerState -eq $poweredOn }
+    $vm = Get-VM -Id $vm.Id -ErrorAction Stop
+    if ($vm.PowerState -ne $poweredOn) {
+        My-Logger "[Error] Timed out waiting for '$($vm.Name)' to reach PoweredOn after $TimeoutSec seconds." -color Red -level Error
+        return
+    }
+
+    # Optionally wait for an IPv4 address
+    if ($WaitForIP) {
+        My-Logger "  Waiting for VM '$($vm.Name)' to come online..."
+        Wait-Until -Vm $vm -Timeout ([math]::Max(120, [int]($TimeoutSec/2))) -Condition {
+            $ips = $script:vm.Guest.IPAddress
+            ($ips -is [array] ? $ips : @($ips)) -match '^\d{1,3}(\.\d{1,3}){3}$' |
+                Where-Object { $_ -ne '127.0.0.1' } |
+                ForEach-Object { $_ } |
+                Measure-Object | Select-Object -ExpandProperty Count
+        }
+        $vm = Get-VM -Id $vm.Id -ErrorAction Stop
+        $ips = $vm.Guest.IPAddress
+        $ipv4 = ($ips -is [array] ? $ips : @($ips)) | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' -and $_ -ne '127.0.0.1' }
+        if (-not $ipv4) {
+            My-Logger "[Error] Timed out waiting for VM '$($vm.Name)' to come online" -color Red -level Error
+            return
+        } 
+    }
+
+    My-Logger "  VM '$($vm.Name)' is powered on."
+    return
+}
+
+function Verify-VMPowerState {
+    [CmdletBinding()]
+    param(
+        # Exact VM names as they appear in vCenter
+        [Parameter(Mandatory)]
+        [string[]] $vmCids,
+
+        # Desired power state to check for
+        [Parameter(Mandatory)]
+        [ValidateSet('On','Off','PoweredOn','PoweredOff')]
+        [string] $DesiredState,
+
+        # Max time to wait per VM for the desired state (seconds)
+        [int] $TimeoutSeconds = 180,
+
+        # How often to poll vCenter (seconds)
+        [ValidateRange(1, 300)]
+        [int] $PollIntervalSeconds = 5
+    )
+
+    begin {
+        # Normalize power state aliases
+        switch ($DesiredState.ToLower()) {
+            'on'         { $desired = 'PoweredOn'  }
+            'poweredon'  { $desired = 'PoweredOn'  }
+            'off'        { $desired = 'PoweredOff' }
+            'poweredoff' { $desired = 'PoweredOff' }
+        }
+    }
+
+    process {
+        foreach ($name in $vmCids) {
+            $vm = Get-VM -Name $name -ErrorAction SilentlyContinue
+
+            if (-not $vm) {
+                [pscustomobject]@{
+                    Name           = $name
+                    Found          = $false
+                    PowerState     = $null
+                    DesiredState   = $desired
+                    MatchesDesired = $false
+                    TimedOut       = $false
+                    ElapsedSeconds = 0
+                    Notes          = 'VM not found in vCenter'
+                }
+                continue
+            }
+
+            $start    = Get-Date
+            $deadline = $start.AddSeconds($TimeoutSeconds)
+            $state    = [string]$vm.PowerState
+
+            # Poll until we match or time out
+            while ($state -ne $desired -and (Get-Date) -lt $deadline) {
+                Start-Sleep -Seconds $PollIntervalSeconds
+                # Re-query by Id (fast, avoids name ambiguity)
+                $state = [string](Get-VM -Id $vm.Id -ErrorAction SilentlyContinue).PowerState
+                if (-not $state) { break } # VM might have been removed
+            }
+
+            $elapsed  = [int]([datetime]::UtcNow - $start.ToUniversalTime()).TotalSeconds
+            $timedOut = ($state -ne $desired)
+
+            [pscustomobject]@{
+                Name           = $vm.Name
+                Found          = $true
+                PowerState     = $state
+                DesiredState   = $desired
+                MatchesDesired = ($state -eq $desired)
+                TimedOut       = $timedOut
+                ElapsedSeconds = $elapsed
+                Notes          = if ($timedOut) { "Did not reach $desired within $TimeoutSeconds seconds" } else { $null }
+            }
+        }
+    }
+}
+
+function Find-BoshDirectorVm {
+    [CmdletBinding()]
+    param(
+        # Custom attribute names (keys)
+        [string]$DeploymentAttr = 'deployment',
+        [string]$DirectorAttr   = 'director',
+
+        # Required values for those attributes
+        [string]$DeploymentValue = 'p-bosh',
+        [string]$DirectorValue   = 'bosh-init'
+    )
+
+    # Ensure we’re connected to vCenter
+    $connected = Get-VIServer $VIServer -User $VIUsername -Password $VIPassword -ErrorAction SilentlyContinue | Where-Object IsConnected
+    if (-not $connected) {
+        Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
+    }
+
+    # Try fast path with Get-Annotation. If not available, fall back to SDK mapping.
+    $supportsAnnotations = Get-Command Get-Annotation -ErrorAction SilentlyContinue
+
+    if ($supportsAnnotations) {
+        Get-VM | ForEach-Object {
+            $vm = $_
+            $anns = Get-Annotation -Entity $vm -CustomAttribute $DeploymentAttr,$DirectorAttr -ErrorAction SilentlyContinue |
+                    Group-Object -Property Name -AsHashTable -AsString
+
+            $dep = if ($anns[$DeploymentAttr]) { $anns[$DeploymentAttr].Value } else { $null }
+            $dir = if ($anns[$DirectorAttr])   { $anns[$DirectorAttr].Value   } else { $null }
+
+            if ($dep -eq $DeploymentValue -and $dir -eq $DirectorValue) {
+                [pscustomobject]@{
+                    VMName     = $vm.Name
+                    Deployment = $dep
+                    Director   = $dir
+                    PowerState = $vm.PowerState
+                    Cluster    = ($vm.VMHost | Get-Cluster).Name
+                }
+            }
+        }
+    }
+    else {
+        # Fallback: build a map of CustomAttribute Key -> Name, then read raw SDK values
+        $attrMap = @{}
+        Get-CustomAttribute -TargetType VirtualMachine -ErrorAction SilentlyContinue |
+            ForEach-Object { $attrMap[$_.Key] = $_.Name }
+
+        Get-VM | ForEach-Object {
+            $vm = $_
+            $kv = @{}
+            foreach ($cv in $vm.ExtensionData.CustomValue) {
+                $name = $attrMap[$cv.Key]
+                if ($name) { $kv[$name] = $cv.Value }
+            }
+            if ($kv[$DeploymentAttr] -eq $DeploymentValue -and $kv[$DirectorAttr] -eq $DirectorValue) {
+                [pscustomobject]@{
+                    VMName     = $vm.Name
+                    Deployment = $kv[$DeploymentAttr]
+                    Director   = $kv[$DirectorAttr]
+                    PowerState = $vm.PowerState
+                    Cluster    = ($vm.VMHost | Get-Cluster).Name
+                }
+            }
+        }
+    }
+}
+
+function Unlock-OpsManager {
+    [CmdletBinding()]
+    param(
+        # Base URL of Ops Manager, e.g. https://ops-man.tasnzu.lab
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$BaseUrl,
+
+        # Decryption passphrase (plain string for simplicity; swap to SecureString if you prefer)
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Passphrase,
+
+        # Skip TLS certificate validation (PS7+ native; WinPS 5.1 handled via .NET fallback)
+        [switch]$SkipCertificateCheck
+    )
+
+    # helpers 
+    function Enable-InsecureTls {
+        # For Windows PowerShell where -SkipCertificateCheck isn't available
+        add-type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+  public bool CheckValidationResult(ServicePoint s, X509Certificate c, WebRequest r, int p) { return true; }
+}
+"@ -ErrorAction SilentlyContinue
+        [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+    }
+
+    # prep
+    $unlockUrl = ($BaseUrl.TrimEnd('/')) + "/unlock"
+    $session   = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
+    # Build common parameter splat (PS7 supports -SkipCertificateCheck)
+    $common = @{ WebSession = $session }
+    if ($SkipCertificateCheck) {
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            $common['SkipCertificateCheck'] = $true
+        } else {
+            Enable-InsecureTls
+        }
+    }
+
+    # 1) GET /unlock to obtain CSRF token + cookies 
+    $resp = Invoke-WebRequest -Uri $unlockUrl @common
+
+    $token = [regex]::Match($resp.Content, 'name="authenticity_token"\s+value="([^"]+)"').Groups[1].Value
+    if (-not $token) {
+        My-Logger "[Error] Unable to locate authenticity_token on $unlockUrl" -level Error -color red
+        exit
+    }
+
+    # 2) POST /unlock with token + passphrase (Rails uses _method=put) 
+    $body = @{
+        "_method"            = "put"
+        "authenticity_token" = $token
+        "login[passphrase]"  = $Passphrase
+    }
+    $headers = @{ "Content-Type" = "application/x-www-form-urlencoded" }
+
+    $post = Invoke-WebRequest -Uri $unlockUrl -Method Post -Body $body -Headers $headers @common
+
+    # simple success check: Ops Manager redirects away from /unlock on success
+    $path = $post.BaseResponse.ResponseUri.AbsolutePath
+    if ($path -eq "/unlock") {
+        # Still on unlock page; check for obvious error text
+        if ($post.Content -match '(invalid|error|try again)') {
+            My-Logger "[Error] Unlock failed: server reported an error." -level Error -color red
+            exit
+        } else {
+            My-Logger "[Error] Unlock may have failed; still at /unlock. Inspect response or try again." -level Error -color red
+            exit
+        }
+    }
+
+    # Success
+    My-Logger "Tanzu Ops Manager now unlocked"
+    return
+}
+
+function Repair-Hub {
+    [CmdletBinding()]
+    param()
+
+    # Retrieve BOSH env parameters from Ops Man and set them
+    Set-BoshEnvFromOpsMan `
+      -OpsManUrl "https://$OpsManagerFQDN" `
+      -Username $OpsManagerAdminUsername `
+      -Password $OpsManagerAdminPassword `
+      -SkipTlsValidation `
+      -TestConnection
+
+    $boshArgs = @('deployments', '--json')
+    $depJson = & $BOSHCLI $boshArgs
+    if ($LASTEXITCODE -ne 0) { throw "Failed to query bosh deployments." }
+
+    $hubDep = ($depJson | ConvertFrom-Json).Tables[0].Rows |
+              ForEach-Object { $_.name } |
+              Where-Object { $_ -like 'hub-*' -and $_ -notlike 'hub-tas-collector-*' } |
+              Select-Object -First 1
+
+    if (-not $hubDep) { throw "No hub-* deployment found (excluding hub-tas-collector-*)." }
+
+    My-Logger "Starting repair of Tanzu Hub..."
+    My-Logger "Using deployment: $hubDep"
+
+    # Get all instances
+    $boshArgs = @('-d', $hubDep, 'instances', '--json')
+    My-Logger "$BOSHCLI $boshArgs" -LogOnly
+    $instJson = & $BOSHCLI $boshArgs
+    if ($LASTEXITCODE -ne 0) { throw "Failed to list instances for '$hubDep'." }
+
+    $instances = @(( $instJson | ConvertFrom-Json ).Tables[0].Rows |
+                  ForEach-Object { $_.instance })  # e.g. 'worker/abcd-uuid'
+
+    if (-not $instances) {
+        My-Logger "No instances found in $hubDep."
+        return
+    }
+
+    # Split into buckets we need
+    $registryNodes = $instances | Where-Object { $_ -match 'registry' }
+    $systemNodes   = $instances | Where-Object { $_ -match 'system' }
+    $otherNodes    = $instances | Where-Object { $_ -notmatch 'registry' -and $_ -notmatch 'system' }
+
+    # Antrea pre-start on non-registry/system nodes
+    if ($otherNodes.Count -gt 0) {
+        My-Logger "Running Antrea pre-start scripts on non-registry/system nodes..."
+        foreach ($n in $otherNodes) {
+            My-Logger "  $n"
+            $boshArgs = @('-d', $hubDep, 'ssh', $n, '-c', 'sudo /var/vcap/jobs/prepare-antrea-nodes/bin/pre-start', '--opts="-o StrictHostKeyChecking=no"', '--opts="-o MACs=hmac-sha2-512"')
+            My-Logger "$BOSHCLI $boshArgs" -LogOnly
+            & $BOSHCLI $boshArgs 2>&1 >> $verboseLogFile
+        }
+    } else {
+        My-Logger "No non-registry/system nodes to process for Antrea."
+    }
+
+    # Registry restart on registry nodes
+    if ($registryNodes.Count -gt 0) {
+        My-Logger "Restarting registry on registry nodes..."
+        foreach ($n in $registryNodes) {
+            My-Logger "  $n (pre-start)"
+            $boshArgs = @('-d', $hubDep, 'ssh', $n, '-c', 'sudo /var/vcap/jobs/registry/bin/pre-start', '--opts="-o StrictHostKeyChecking=no"', '--opts="-o MACs=hmac-sha2-512"')
+            My-Logger "$BOSHCLI $boshArgs" -LogOnly
+            & $BOSHCLI $boshArgs 2>&1 >> $verboseLogFile
+            
+            Start-Sleep -Seconds 10
+            
+            My-Logger "  $n (monit restart registry)"
+            $boshArgs = @('-d', $hubDep, 'ssh', $n, '-c', 'sudo monit restart registry', '--opts="-o StrictHostKeyChecking=no"', '--opts="-o MACs=hmac-sha2-512"')
+            My-Logger "$BOSHCLI $boshArgs" -LogOnly
+            & $BOSHCLI $boshArgs 2>&1 >> $verboseLogFile
+        }
+    } else {
+        My-Logger "No registry nodes found."
+    }
+
+    My-Logger "Tanzu Hub repair complete."
+    My-Logger "Please note it can take up to 5 minutes before Tanzu Hub UI is available."
+    
+}
+
+function Stop-TanzuPlatform {
+    $ans = Read-Host "Proceed with shutdown of Tanzu Platform? (y/n)"
+    if ($ans -match '^(y|yes)$') {
+        "Continuing..."
+    } else {
+        "Cancelled."
+        exit
+    }
+
+    $StartTime = Get-Date
+
+    My-Logger "======================================================"
+    My-Logger "         Shutting down Tanzu Platform                 "
+    My-Logger "======================================================"
+
+    # Retrieve BOSH env parameters from Ops Man and set them
+    Set-BoshEnvFromOpsMan `
+      -OpsManUrl "https://$OpsManagerFQDN" `
+      -Username $OpsManagerAdminUsername `
+      -Password $OpsManagerAdminPassword `
+      -SkipTlsValidation `
+      -TestConnection
+
+    # Document Environment
+    My-logger "Documenting current environment state into log file $verboseLogFile"
+
+    # Record BOSH deployments
+    $boshArgs = @('deployments', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $deploymentsRaw = & $BOSHCLI @boshArgs
+    My-Logger "All deployments details: $deploymentsRaw" -LogOnly
+    $deployments = $deploymentsRaw | ConvertFrom-Json `
+        | ForEach-Object { $_.Tables | Where-Object Content -eq 'deployments' | ForEach-Object Rows } `
+        | Select-Object -ExpandProperty name `
+        | Sort-Object -Unique
+    My-Logger "Deployments list: $deployments" -LogOnly
+
+    # Record BOSH VMs
+    $boshArgs = @('vms', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $vmsRaw = & $BOSHCLI @boshArgs
+    My-Logger "All deployments VMs details: $vmsRaw" -LogOnly
+
+    # Perform health check of env
+    My-logger "Performing health check of environment..."
+
+    # bosh cloud-check
+    $cckResults = foreach ($d in $deployments) {
+        My-Logger "  Checking deployment $d..."
+        $boshArgs = @('--deployment', $d, 'cloud-check', '--report') 
+        $output = & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+        $code   = $LASTEXITCODE
+        [pscustomobject]@{
+            Deployment = $d
+            ExitCode   = $code
+            Healthy    = ($code -eq 0)
+            Output     = ($output -join [Environment]::NewLine)
+        }
+    }
+    $table = $cckResults | Sort-Object Healthy, Deployment | Format-Table Deployment, Healthy -AutoSize | Out-String
+    My-logger "Health check results:"
+    #My-Logger "$table"
+    $table -split '\r?\n' |
+        Where-Object { $_ -match '\S' } |
+        ForEach-Object { My-Logger "  $_" }
+
+    $cckFailed = @($cckResults | Where-Object { -not $_.Healthy })
+    if ($cckFailed.Count -gt 0) {
+        My-Logger "Failures detected in:"
+        $cckFailed |
+            Sort-Object Deployment |
+            ForEach-Object { 
+                My-Logger (" - {0} (ExitCode={1})" -f $_.Deployment, $_.ExitCode) 
+            }
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Check BOSH resurection plugin status and disable it
+    $boshArgs = @('curl', '--', '/resurrection')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $statusJson = & $BOSHCLI @boshArgs
+    $status = $statusJson | ConvertFrom-Json
+    $enabled = $status.resurrection
+    if ($enabled) {
+        My-Logger "BOSH resurrection plugin is ENABLED"
+        My-Logger "Disabling BOSH resurrection ahead of shutdown"
+        $boshArgs = @('update-resurrection', 'off')
+        My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+        & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+    } else {
+        My-Logger "BOSH resurrection plugin is already DISABLED (paused)"
+    }
+
+    # Ensure we’re connected to vCenter
+    $connected = Get-VIServer $VIServer -User $VIUsername -Password $VIPassword -ErrorAction SilentlyContinue | Where-Object IsConnected
+    if (-not $connected) {
+        Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
+    }
+
+    # Note: For non-SRT foundations, one would need to scale consul_server and mysql down to 1 before proceeding with stopping the deployments
+
+    ### Stop options ###
+    # 1) Fully graceful             -> "bosh stop hard" which runs pre/drain scripts, stops the processes, shutdowns the VMs, deletes the VMs but keeps the presistent disks
+    # 2) Graceful with manual steps -> "bosh stop" which runs pre/drain scripts, stops the processes, but keeps the VM running. Need to manually stop the VMs
+    # 3) "Dirty"                    -> "stop vms", no pre/drain scripts
+
+    # 1) Stop deployments: Fully graceful (bosh stop hard)
+    # Note: Do not use until issue with hub coming back up after "bosh stop/start" is root caused
+    #My-Logger "Stopping deployments. See the following log for detailed status $verboseLogFile"
+    #Stop-Deployments -DeploymentList $deployments -Hard
+
+    # 2) Stop deployments: Graceful with manual vm stop (bosh stop and then shutdown vms seperatly)
+    # Note: Do not use until issue with hub coming back up after "bosh stop/start" is root caused
+    #My-Logger "Stopping deployments. See the following log for detailed status $verboseLogFile"
+    #Stop-Deployments -DeploymentList $deployments
+    # then use option 3 to stop VMs
+
+    # 3) Stop deploymnets: Dirty (stop VMs)
+
+    $boshArgs = @('vms', '--column=vm_cid', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $vmsRaw = & $BOSHCLI @boshArgs
+    My-Logger "All VM CIDs (raw JSON): $vmsRaw" -LogOnly
+    $vmCids = $vmsRaw | ConvertFrom-Json `
+        | ForEach-Object { $_.Tables | Where-Object Content -eq 'vms' | ForEach-Object Rows } `
+        | Where-Object { $_ } `
+        | Select-Object -ExpandProperty vm_cid
+    My-Logger "VMs list: $vmCids" -LogOnly
+
+    My-Logger "Shutting down guest OS of Tanzu Platform VMs..."
+    foreach ($cid in $vmCids) {
+        try {
+            # issue stop guest OS on all VMs without waiting
+            Stop-GuestVm -VMName $cid | Out-Null
+        }
+        catch {
+            My-Logger "[Error] Failed to stop VM: '$cid': $($_.Exception.Message)" -level Error -color Red
+        }
+    }
+
+    # Verify all VMs powered off sucessfully
+    $results = Verify-VMPowerState -vmCids $vmCids -DesiredState Off
+
+    # Determine which didn't meet the desired state (includes not found + timeouts + wrong state)
+    $notMet = $results | Where-Object { -not $_.MatchesDesired }
+    $desired = $results[0].DesiredState
+    if ($notMet.Count -eq 0) {
+        My-Logger -message "All $($results.Count) VMs reached the desired state '$desired'." -level INFO -color Green
+    } else {
+        # Make a nicely sized string from the table (avoid truncation with a wide width)
+        $width  = if ($Host.UI.RawUI.BufferSize.Width -gt 0) { $Host.UI.RawUI.BufferSize.Width } else { 4096 }
+        $table  = ($notMet |
+            Sort-Object Name |
+            Format-Table -AutoSize Name,Found,PowerState,DesiredState,TimedOut,ElapsedSeconds,Notes |
+            Out-String -Width $width).TrimEnd()
+    
+        My-Logger "The following $($notMet.Count) VM(s) did NOT reach '$desired' state:`n$table" -level WARNING -color Yellow
+    }
+
+    # Find name of BOSH Director VM in vCenter
+    $directorVm = @(Find-BoshDirectorVm)
+    My-Logger "Found BOSH Director VM"
+    if ($directorVm.Count -eq 0) {
+        My-Logger "BOSH Director VM not found. Please check vCenter manually and shutodwn the BOSH Director VM, and then Ops Manager VM"
+        exit
+    } elseif ($directorVm.Count -gt 1) {
+        $names = $directorVm | Select-Object -ExpandProperty VMName
+        My-Logger ("[Error] Multiple BOSH Director VMs found: {0}. Aborting." -f ($names -join ', ')) -level Error -color Red
+        exit
+    } else {
+        $directorName = $directorVm[0].VMName
+        My-Logger "BOSH Director VM is $directorName"
+        Stop-GuestVm -VMName $directorName -WaitForPowerOff | Out-Null
+        
+        My-Logger "Tanzu Ops Manger VM is $OpsManagerDisplayName"
+        Stop-GuestVm -VMName $OpsManagerDisplayName -WaitForPowerOff | Out-Null
+    }
+
+    $EndTime = Get-Date
+    $duration = [math]::Round((New-TimeSpan -Start $StartTime -End $EndTime).TotalMinutes,2)
+
+    My-Logger " "
+    My-Logger "======================================================"
+    My-Logger "         Shutdown of Tanzu Platform is complete!      "
+    My-Logger "======================================================"
+    My-Logger "StartTime: $StartTime"
+    My-Logger "  EndTime: $EndTime"
+    My-Logger " Duration: $duration minutes"
+    My-Logger " "
+    My-Logger "Verbose log: $verboseLogFile"
+    My-Logger " "
+
+    exit
+}
+
+function Start-TanzuPlatform {
+    $ans = Read-Host "Proceed with start of Tanzu Platform? (y/n)"
+    if ($ans -match '^(y|yes)$') {
+        "Continuing..."
+    } else {
+        "Cancelled."
+        exit
+    }
+
+    $StartTime = Get-Date
+
+    My-Logger "======================================================"
+    My-Logger "             Starting Tanzu Platform                  "
+    My-Logger "======================================================"
+
+    # Ensure we’re connected to vCenter
+    $connected = Get-VIServer $VIServer -User $VIUsername -Password $VIPassword -ErrorAction SilentlyContinue | Where-Object IsConnected
+    if (-not $connected) {
+        Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -Force -WarningAction SilentlyContinue -ErrorAction Stop
+    }
+
+    # find name of BOSH Director VM in vCenter
+    $directorVm = @(Find-BoshDirectorVm)
+    if ($directorVm.Count -eq 0) {
+        My-Logger "BOSH Director VM not found. Please check vCenter, manually start the BOSH Director VM, and then rerun the script"
+        exit
+    } elseif ($directorVm.Count -gt 1) {
+        $names = $directorVm | Select-Object -ExpandProperty VMName
+        My-Logger "[Error] Multiple BOSH Director VMs found. Aborting." -level Error -color Red
+        exit
+    } else {
+        My-Logger "Tanzu Ops Manager VM is $OpsManagerDisplayName"
+        Start-GuestVm -VMName $OpsManagerDisplayName -WaitForIP | Out-Null
+
+        $directorName = $directorVm[0].VMName
+        My-Logger "BOSH Director VM is $directorName"
+        Start-GuestVm -VMName $directorName -WaitForIP | Out-Null
+    }
+
+    # Is /unlock reachable?
+    $BaseUrl     = "https://$OpsManagerFQDN"
+    $UnlockUrl   = "$BaseUrl/unlock"
+    $UaaUrl      = "$BaseUrl/uaa/login"
+    $timeoutSec  = 300
+    $intervalSec = 5
+    $deadline    = (Get-Date).AddSeconds($timeoutSec)
+
+    # helper for 2xx only
+    function Test-2xx {
+        param([string]$Url)
+        try {
+            $r = Invoke-WebRequest -Uri $Url -Method Head -MaximumRedirection 0 -TimeoutSec 5 -SkipCertificateCheck -ErrorAction Stop
+            return ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300)
+        } catch { return $false }
+    }
+
+    # helper for 2xx OR 3xx
+    function Test-Ok {
+        param([string]$Url)
+        try {
+            $r = Invoke-WebRequest -Uri $Url -Method Head -TimeoutSec 5 -SkipCertificateCheck -ErrorAction Stop
+            return ($r.StatusCode -ge 200 -and $r.StatusCode -lt 400)  # 2xx or 3xx = OK
+        } catch { return $false }
+    }
+
+    My-Logger "Waiting for Tanzu Ops Manager web services to come online..."
+    $baseUp = $false
+    do {
+        $baseUp = Test-Ok $BaseUrl
+        if (-not $baseUp) { Start-Sleep -Seconds $intervalSec }
+    } while (-not $baseUp -and (Get-Date) -lt $deadline)
+    
+    if (-not $baseUp) {
+        My-Logger "[Error] Tanzu Ops Manager didn't come online within ${timeoutSec}s. Aborting." -level Error -color Red
+        exit
+    }
+
+    # web server is up, check /unlock, then /uaa/login
+    if (Test-2xx $UnlockUrl) {
+        # /unlock reachable → perform unlock
+        My-Logger "Unlocking Tanzu Ops Manager..."
+        Unlock-OpsManager -BaseUrl $BaseUrl -Passphrase $OpsManagerDecryptionPassword -SkipCertificateCheck
+    }
+    elseif (Test-2xx $UaaUrl) {
+        # /unlock not reachable but UAA login is → likely already unlocked; skip
+        My-Logger "Tanzu Ops Manager appears already unlocked. Skipping unlock step."
+    }
+    else {
+        My-Logger "Neither $UnlockUrl nor $UaaUrl is reachable. Please investigate."
+        exit
+    }
+
+    # Wait for Tanzu Ops Manager authentication to start
+    My-Logger "Waiting for Tanzu Ops Manager authentication to start after unlock..."
+    do {
+        $ok = Test-2xx $UaaUrl
+    if (-not $ok) { Start-Sleep -Seconds $intervalSec }
+    } while (-not $ok -and (Get-Date) -lt $deadline)
+
+    if (-not $ok) {
+        My-Logger "[Error] Timed out after ${timeoutSec}s waiting for Tanzu Ops Manager authentication to start" -level Error -color Red
+        exit
+    }
+    My-Logger "Tanzu Ops Manager authentication is ready"
+
+    # Retrieve BOSH env parameters from Ops Man and set them
+    Set-BoshEnvFromOpsMan `
+      -OpsManUrl "https://$OpsManagerFQDN" `
+      -Username $OpsManagerAdminUsername `
+      -Password $OpsManagerAdminPassword `
+      -SkipTlsValidation `
+      -TestConnection
+
+    $boshArgs = @('vms', '--column=vm_cid', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $vmsRaw = & $BOSHCLI @boshArgs
+    My-Logger "All VM CIDs (raw JSON): $vmsRaw" -LogOnly
+    $vmCids = $vmsRaw | ConvertFrom-Json `
+        | ForEach-Object { $_.Tables | Where-Object Content -eq 'vms' | ForEach-Object Rows } `
+        | Where-Object { $_ } `
+        | Select-Object -ExpandProperty vm_cid
+    My-Logger "VMs list: $vmCids" -LogOnly
+
+    My-Logger "Power on Tanzu Platform VMs..."
+    foreach ($cid in $vmCids) {
+        try {
+            # Power on VM, don't wait for it come online
+            Start-GuestVm -VMName $cid | Out-Null
+        }
+        catch {
+            My-Logger "[Error] Failed to start VM: '$cid': $($_.Exception.Message)" -level Error -color Red
+        }
+    }
+
+    # Verify all VMs powered on sucessfully
+    $results = Verify-VMPowerState -vmCids $vmCids -DesiredState On
+
+    # Determine which didn't meet the desired state (includes not found + timeouts + wrong state)
+    $notMet = $results | Where-Object { -not $_.MatchesDesired }
+    $desired = $results[0].DesiredState
+    if ($notMet.Count -eq 0) {
+        My-Logger -message "All $($results.Count) VMs reached the desired state '$desired'." -level INFO -color Green
+    } else {
+        # Make a nicely sized string from the table (avoid truncation with a wide width)
+        $width  = if ($Host.UI.RawUI.BufferSize.Width -gt 0) { $Host.UI.RawUI.BufferSize.Width } else { 4096 }
+        $table  = ($notMet |
+            Sort-Object Name |
+            Format-Table -AutoSize Name,Found,PowerState,DesiredState,TimedOut,ElapsedSeconds,Notes |
+            Out-String -Width $width).TrimEnd()
+    
+        My-Logger "The following $($notMet.Count) VM(s) did NOT reach '$desired' state:`n$table" -level WARNING -color Yellow
+    }
+
+    # Retrieve bosh deployments
+    $boshArgs = @('deployments', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $deploymentsRaw = & $BOSHCLI @boshArgs
+    My-Logger "All deployments details: $deploymentsRaw" -LogOnly
+    $deployments = $deploymentsRaw | ConvertFrom-Json `
+        | ForEach-Object { $_.Tables | Where-Object Content -eq 'deployments' | ForEach-Object Rows } `
+        | Select-Object -ExpandProperty name `
+        | Sort-Object -Unique
+    My-Logger "Deployments list: $deployments" -LogOnly
+
+    # Start deployments
+    # Note: Do not use until bug with Hub coming back up after "bosh stop/start" is root caused
+    #My-Logger "Starting deployments. See the following log for detailed status $verboseLogFile"
+    #Start-Deployments -DeploymentList $deployments
+
+    # Repair Tanzu Hub
+    if ($deployments -like 'hub-*') { Repair-Hub }
+
+    # Perform health check of env
+    My-logger "Performing health check of environment..."
+    # bosh cloud-check
+    $cckResults = foreach ($d in $deployments) {
+        My-Logger "  Checking deployment $d..."
+        $boshArgs = @('--deployment', $d, 'cloud-check', '--report') 
+        $output = & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+        $code   = $LASTEXITCODE
+        [pscustomobject]@{
+            Deployment = $d
+            ExitCode   = $code
+            Healthy    = ($code -eq 0)
+            Output     = ($output -join [Environment]::NewLine)
+        }
+    }
+    $table = $cckResults | Sort-Object Healthy, Deployment | Format-Table Deployment, Healthy -AutoSize | Out-String
+    My-logger "Health check results:"
+    $table -split '\r?\n' | Where-Object { $_ -match '\S' } | ForEach-Object { My-Logger "  $_" }
+
+    $cckFailed = @($cckResults | Where-Object { -not $_.Healthy })
+    if ($cckFailed.Count -gt 0) {
+        My-Logger "Failures detected in:"
+        $cckFailed |
+            Sort-Object Deployment |
+            ForEach-Object { 
+                My-Logger (" - {0} (ExitCode={1})" -f $_.Deployment, $_.ExitCode) 
+            }
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    My-Logger "Health check complete"
+
+    $EndTime = Get-Date
+    $duration = [math]::Round((New-TimeSpan -Start $StartTime -End $EndTime).TotalMinutes,2)
+
+    My-Logger " "
+    My-Logger "======================================================"
+    My-Logger "          Start of Tanzu Platform is complete!        "
+    My-Logger "======================================================"
+    My-Logger "StartTime: $StartTime"
+    My-Logger "  EndTime: $EndTime"
+    My-Logger " Duration: $duration minutes"
+    My-Logger " "
+    My-Logger "Verbose log: $verboseLogFile"
+    My-Logger " "
+
+    #retrieve uaa admin password
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "credentials", "-p", "cf", "-c", ".uaa.admin_credentials")
+    $credsOutput = & $OMCLI $configArgs
+    $uaaAdminPassword = $null
+    foreach ($line in $credsOutput) {
+        if ($line -match "^\|\s*admin\s*\|\s*(.+?)\s*\|$") {
+            $uaaAdminPassword = $Matches[1].Trim()
+            break
+        }
+    }
+
+    My-Logger "======================================================"
+    My-Logger "                Next steps...                         "
+    My-Logger "======================================================"
+    My-Logger "Log into Tanzu Operations Manager"
+    My-Logger "- Open a browser to https://$OpsManagerFQDN"
+    My-Logger "- Username: $OpsManagerAdminUsername"
+    My-Logger "- Password: $OpsManagerAdminPassword"
+    My-Logger " "
+    My-Logger "Log into Tanzu Apps Manager"
+    My-Logger "- Open a browser to https://apps.sys.$TPCFDomain"
+    My-Logger "- Username: $OpsManagerAdminUsername"
+    My-Logger "- Password: $uaaAdminPassword"
+    My-Logger " "
+
+    if ($deployments -like 'hub-*') {
+        My-Logger "Log into Tanzu Hub"
+        My-Logger "- Open a browser to https://$HubFQDN"
+        My-Logger "- Username: tanzu_platform_admin"
+        My-Logger "- Password: <password set on first login>"
+        My-Logger " "
+    }
+
+    My-Logger "Use Cloud Foundry CLI (cf cli) to push and manage apps, create and bind services, and more"
+    My-Logger "- cf login -a https://api.sys.$TPCFDomain -u $OpsManagerAdminUsername -p $uaaAdminPassword --skip-ssl-validation"
+    My-Logger " "
+
+    exit 
+}
+
+function Install-TanzuPlatform {
+$StartTime = Get-Date
 
 if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor Magenta "`nPlease confirm the following configuration will be deployed:`n"
@@ -3709,4 +4777,25 @@ if ($setupTPCF){
         My-Logger "- Username: $MinioUsername"
         My-Logger "- Password: $MinioPassword"
     }
+}
+
+exit
+}
+
+$choices = @()
+if ($PSBoundParameters.ContainsKey('Action')) { $choices += $Action }
+if ($Start) { $choices += 'Start' }
+if ($Stop)  { $choices += 'Stop'  }
+
+switch ($choices.Count) {
+  0 { Install-TanzuPlatform; return } #nothing specified, run Install
+  1 {
+      switch ($choices[0]) {
+        'Stop'  { Stop-TanzuPlatform;  return }
+        'Start' { Start-TanzuPlatform; return }
+      }
+    }
+  default {
+      throw "Invalid command"
+  }
 }

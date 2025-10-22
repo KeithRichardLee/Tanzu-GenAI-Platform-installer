@@ -4,6 +4,8 @@ TL;DR - A powershell script that automates the install of VMware Tanzu Platform,
 
 The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, and GenAI service with models that have embedding, chat, and tools capabilities. Optionally, Tanzu Healthwatch (observability) and Tanzu Hub (global control plane) can be installed.
 
+The script, when ran after an install with "stop" or "start", can stop or start the whole platform.
+
 Note:
 - The script uses what is known as the Small Footprint Tanzu Platform for Cloud Foundry which is a repackaging of Tanzu Platform for Cloud Foundry into a smaller deployment with fewer VMs which is perfect for POC and sandbox work.
 - There are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/toc-tas-install-index.html#limits). 
@@ -161,7 +163,7 @@ $MinioPassword = 'VMware1!'
 $MinioBucket   = "models"
 $EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
 $ChatToolsModelPath     = "/Users/Tanzu/Downloads/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"                          #Download from https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/resolve/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf
-$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/mistral-nemo-instruct-2407-Q4_K_M_modlefile.txt"                 #Download from https://huggingface.co/keithrichardlee/mistral-nemo/resolve/main/mistral-nemo-12b-instruct-2407-q4_K_M_modelfile.txt
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/mistral-nemo-instruct-2407-Q4_K_M_modelfile.txt"                 #Download from https://huggingface.co/keithrichardlee/mistral-nemo/resolve/main/mistral-nemo-12b-instruct-2407-q4_K_M_modelfile.txt
 $BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
 $MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 ```
@@ -362,6 +364,31 @@ Ask it for the current price of bitcoin
 Congratulations, you have come to the end of this quick start guide. We have barely scratched the surface of the GenAI capabilities of the platform, or the vast capabilities of the platform as a whole. To learn more, please see official documentation and resources below.
 
 # Appendix
+
+## Stop / Start Tanzu Platform
+- After a successful install, you can stop / shutdown the whole Tanzu Platform should the scenario arise eg need to release resources or shutdown the host(s) eg in a home lab. You can then also start it back up.
+- The script will...
+  - Document the environment
+  - Perform a health check
+  - Disable resurrector (if enabled)
+  - Shutdown the platform deployments
+  - Shutdown BOSH Director and Ops Manager
+
+ - And for start / power-up...
+   - Start Ops Manager and BOSH Director
+   - Unlock Ops Manager
+   - Start the platform deployments
+   - Perform a health check
+
+- To stop / shutdown the platform
+```bash
+.\tanzu-ai-starter-kit-installer-dev.ps1 stop
+```
+
+- To start / power-up the platform
+```bash
+.\tanzu-ai-starter-kit-installer-dev.ps1 start
+```
 
 ## Resources
 - [VMware Tanzu AI Solutions website](https://www.vmware.com/solutions/app-platform/ai)
