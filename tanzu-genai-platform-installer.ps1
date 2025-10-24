@@ -1284,7 +1284,7 @@ function Calculate-TotalRequirements {
         "TPCF" = $true
         "TanzuAI" = $InstallTanzuAI
         "HealthWatch" = $InstallHealthwatch
-        "Hub" = $
+        "Hub" = $InstallHub
         "Minio" = $InstallMinIO
     }
 
