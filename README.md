@@ -1,8 +1,8 @@
 # Tanzu GenAI Platform installer
 
-TL;DR - A powershell script that automates the install of VMware Tanzu Platform, a private PaaS which includes GenAI capabilities, on VMware vSphere with minimal resource requirements.
+TL;DR - A powershell script that automates the install of VMware Tanzu Platform, a private PaaS which includes AI capabilities, on VMware vSphere with minimal resource requirements.
 
-The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, and GenAI service with models that have embedding, chat, and tools capabilities. Optionally, Tanzu Healthwatch (observability) and Tanzu Hub (global control plane) can be installed.
+The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, and GenAI service with models that have embedding, chat, and tools capabilities. Optionally, Tanzu Hub (global control plane) can be installed.
 
 The script, when ran after an install with "stop" or "start", can stop or start the whole platform.
 
@@ -48,12 +48,10 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
 - [VMware PowerCLI](https://techdocs.broadcom.com/us/en/vmware-cis/vcf/power-cli/latest/powercli/installing-vmware-vsphere-powercli/install-powercli.html) installed eg `Install-Module VMware.PowerCLI`
 - [OM CLI](https://github.com/pivotal-cf/om) installed
 - Following files downloaded...
-  - [VMware Tanzu Operations Manager](https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager)
-  - [Small Footprint Tanzu Platform for Cloud Foundry](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry)
-  - [VMware Tanzu Postgres](https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry)
-  - [VMware Tanzu GenAI](https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry)
-  - [VMware Tanzu Healthwatch](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch) (optional)
-  - [VMware Tanzu Healthwatch Exporter](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch) (optional)
+  - [VMware Tanzu Operations Manager](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform)
+  - [Small Footprint Tanzu Platform for Cloud Foundry](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform)
+  - [VMware Tanzu Postgres](https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform)
+  - [VMware Tanzu GenAI](https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform)
   - [VMware Tanzu Hub](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub) (optional)
 - This repo cloned eg `git clone https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer.git`
 
@@ -102,21 +100,12 @@ $TPCFDomain               = "tp.tanzu.lab"                                      
 $TPCFLicenseKey           = ""                                                       #License key required for 10.2 and later
 ```
 
-Update Healthwatch fields 
-- Note; installing Healthwatch (observability) is optional. Installing Healthwatch requires an additional 11 IP addresses, 1 GHz CPU, 16 GB mem, and 100 GB storage.
-```bash
-### Install Healthwatch (observability)?
-$InstallHealthwatch      = $true
-$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.3-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
-$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.3-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
-```
-
 Update Tanzu Hub fields 
 - Note; installing Tanzu Hub (global control plane) is optional. Installing Tanzu Hub requires an additional 13 IP addresses, 10 GHz CPU, 100 GB mem, and 400 GB storage.
 ```bash
 ### Install Tanzu Hub (global control plane)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.2.1.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -141,7 +130,7 @@ AI models
 ```bash
 # Tanzu AI Solutions config
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
+$OllamaChatToolsModel = "gpt-oss:20b"
 ```
 
 Airgapped / internet restricted environment 
@@ -162,8 +151,8 @@ $MinioUsername = "root"
 $MinioPassword = 'VMware1!'
 $MinioBucket   = "models"
 $EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
-$ChatToolsModelPath     = "/Users/Tanzu/Downloads/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"                          #Download from https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/resolve/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf
-$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/mistral-nemo-instruct-2407-Q4_K_M_modelfile.txt"                 #Download from https://huggingface.co/keithrichardlee/mistral-nemo/resolve/main/mistral-nemo-12b-instruct-2407-q4_K_M_modelfile.txt
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/gpt-oss-20b.gguf
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b.txt"                                 #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/tanzu-modelfile-gpt-oss-20b.txt 
 $BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
 $MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 ```
@@ -418,7 +407,6 @@ $setupBOSHDirector = 1
 $setupTPCF = 1
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
-$setupHealthwatch = $InstallHealthwatch
 $setupHub = $InstallHub
 $ignoreWarnings = $false
 ```
@@ -442,8 +430,6 @@ Below are the pre-checks the script performs...
   - VMware Tanzu Platform for Cloud Foundry tile exists
   - VMware Tanzu Postgres tile exists
   - VMware Tanzu GenAI tile exists
-  - VMware Tanzu Healthwatch tile exists
-  - VMware Tanzu Healthwatch Exporter tile exists
   - VMware Tanzu Hub tile exists
 
 - Network
@@ -485,8 +471,6 @@ Below are the pre-checks the script performs...
   - VMware Tanzu Platform for Cloud Foundry is not already installed
   - VMware Tanzu Postgres is not already installed
   - VMware Tanzu GenAI is not already installed
-  - VMware Tanzu Healthwatch is not already installed
-  - VMware Tanzu Healthwatch Exporter is not already installed
   - VMware Tanzu Platform license key is in valid format
 
 - Other
@@ -496,13 +480,11 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Tanzu Operations Manager:** ops-manager-vsphere-3.1.3.ova
-- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.2.3-build.2.pivotal
+- **Tanzu Operations Manager:** ops-manager-vsphere-3.2.0.ova
+- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.3.0-build.12.pivotal
 - **VMware Postgres:** postgres-10.1.1-build.1.pivotal
-- **Tanzu GenAI:** genai-10.2.5.pivotal
-- **Healthwatch:** healthwatch-2.3.3-build.21.pivotal
-- **Healthwatch Exporter:** healthwatch-pas-exporter-2.3.3-build.21.pivotal
-- **Tanzu Hub:** tanzu-hub-10.2.1.pivotal
+- **Tanzu GenAI:** genai-10.3.0.pivotal
+- **Tanzu Hub:** tanzu-hub-10.3.0.pivotal
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.1
 - **PowerCLI:** 13.3.0
