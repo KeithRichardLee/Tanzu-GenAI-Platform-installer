@@ -4341,7 +4341,7 @@ product-properties:
       model_name: $OllamaEmbedModel
       model_url: $EmbedModelUrl
       ollama_context_length: 2048
-      ollama_flash_attention: false
+      ollama_flash_attention: true
       ollama_keep_alive: "-1"
       ollama_kv_cache_type: f16
       ollama_load_timeout: 5m
@@ -4352,7 +4352,6 @@ product-properties:
       - $BOSHAZAssignment
       handle: $OllamaChatToolsModel
       instances: 1
-      model_aliases: null
       model_capabilities:
       - chat
       - tools
@@ -4360,7 +4359,7 @@ product-properties:
       model_name: $OllamaChatToolsModel
       model_url: $ChatToolsModelUrl
       ollama_context_length: 131072
-      ollama_flash_attention: false
+      ollama_flash_attention: true
       ollama_keep_alive: "-1"
       ollama_kv_cache_type: f16
       ollama_load_timeout: 5m
