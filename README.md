@@ -1,14 +1,14 @@
 # Tanzu GenAI Platform installer
 
-TL;DR - A powershell script that automates the install of VMware Tanzu Platform, a private PaaS which includes AI capabilities, on VMware vSphere with minimal resource requirements.
+TL;DR - A powershell script that automates the install of VMware Tanzu Platform, a private PaaS which includes AI services, on VMware vSphere with minimal resource requirements.
 
-The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes VMware Tanzu Operations Manager, BOSH Director, Cloud Foundry runtime, VMware Postgres, and GenAI service with models that have embedding, chat, and tools capabilities. Optionally, Tanzu Hub (global control plane) can be installed.
+The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes Foundation Core (Tanzu Operations Manager), BOSH Director, Elastic Application Runtime, Postgres, and AI Services with models that have embedding, chat, and tools capabilities. Optionally, Tanzu Hub (global control plane with observability) can be installed.
 
-The script, when ran after an install with "stop" or "start", can stop or start the whole platform.
+The script, when ran after an install with "stop" or "start", can stop or start the whole Tanzu Platform.
 
 Note:
-- The script uses what is known as the Small Footprint Tanzu Platform for Cloud Foundry which is a repackaging of Tanzu Platform for Cloud Foundry into a smaller deployment with fewer VMs which is perfect for POC and sandbox work.
-- There are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/toc-tas-install-index.html#limits). 
+- The script uses what is known as the Small Footprint Elastic Application Runtime which is a repackaging of Elastic Application Runtime into a smaller deployment with fewer VMs which is perfect for POC and sandbox work.
+- There are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/toc-tas-install-index.html#limits). 
 
 For a much more comprehensive automated install of Tanzu Platform, which uses [Concourse](https://concourse-ci.org/), check out the [Platform Automation Toolkit for Tanzu](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/platform-automation-toolkit-for-tanzu/5-3/vmware-automation-toolkit/docs-index.html)
 
@@ -18,19 +18,19 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
     - Compute: ~51 vCPU, although only uses approx 5 GHz
     - Memory: ~85 GB
     - Storage: ~380 GB
-  - User / service account with at least the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-1/tanzu-ops-manager/vsphere-vsphere-service-account.html)
+  - User / service account with at least the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-2/tanzu-ops-manager/vsphere-vsphere-service-account.html)
 
 **Networking**
   - IP addresses
     - A subnet with at least 13 free IP addresses including two static IP addresses
-      - 1x Tanzu Operations Manger
+      - 1x Foundation Core (Tanzu Operations Manger)
       - 1x GoRouter 
     
   - DNS
     - 3 records created
-      - 1x VMware Tanzu Operations Manager eg opsman.tanzu.lab
+      - 1x Foundation Core (Tanzu Operations Manager) eg opsman.tanzu.lab
       - 1x Tanzu Platform system wildcard eg *.sys.tp.tanzu.lab which will resolve to the GoRouter IP
-      - 1x Tanzu Platfrom apps wildcard eg *.apps.tp.tanzu.lab which will resolve to the GoRouter IP
+      - 1x Tanzu Platform apps wildcard eg *.apps.tp.tanzu.lab which will resolve to the GoRouter IP
    
   - NTP service
 
@@ -38,7 +38,7 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
     - Ability to reach registry.ollama.ai so Tanzu Platform can download AI models (Note: The script also supports airgapped / internet restricted environments, see "Advanced Config" section below for further details)
    
   - Certificates (optional)
-    - By default, the installer creates a self-signed cert for TLS termination at the GoRouter. A user can provide their own cert if wished. See [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/security_config.html) for cert requirements. 
+    - By default, the installer creates a self-signed cert for TLS termination at the GoRouter. A user can provide their own cert if wished. See [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/security_config.html) for cert requirements. 
 
 **Entitlement**
 - If don't already have entitlement to Tanzu Platform, you can request a 90 day trial [here](https://support.broadcom.com/group/ecx/trials-program)
@@ -48,18 +48,18 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
 - [VMware PowerCLI](https://techdocs.broadcom.com/us/en/vmware-cis/vcf/power-cli/latest/powercli/installing-vmware-vsphere-powercli/install-powercli.html) installed eg `Install-Module VMware.PowerCLI`
 - [OM CLI](https://github.com/pivotal-cf/om) installed
 - Following files downloaded...
-  - [VMware Tanzu Operations Manager](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform)
-  - [Small Footprint Tanzu Platform for Cloud Foundry](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform)
-  - [VMware Tanzu Postgres](https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform)
-  - [VMware Tanzu GenAI](https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform)
-  - [VMware Tanzu Hub](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub) (optional)
+  - [Foundation Core (Tanzu Operations Manager)](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform)
+  - [Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry)](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform)
+  - [Postgres](https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform)
+  - [AI Services (GenAI) ](https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform)
+  - [Tanzu Hub](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub) (optional)
 - This repo cloned eg `git clone https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer.git`
 
 
 ## Fill out required fields in the script
 Update each instance of "FILL-ME-IN" in the script. See below for a worked example...
 
-Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, VMware Postgres tile, VMware Tanzu GenAI tile, and OM CLI
+Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, Postgres tile, GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
 $OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.3.ova"
@@ -101,9 +101,9 @@ $TPCFLicenseKey           = ""                                                  
 ```
 
 Update Tanzu Hub fields 
-- Note; installing Tanzu Hub (global control plane) is optional. Installing Tanzu Hub requires an additional 13 IP addresses, 10 GHz CPU, 100 GB mem, and 400 GB storage.
+- Note; installing Tanzu Hub (global control plane with observability) is optional. Installing Tanzu Hub requires an additional 13 IP addresses, 10 GHz CPU, 100 GB mem, and 400 GB storage.
 ```bash
-### Install Tanzu Hub (global control plane)?
+### Install Tanzu Hub (global control plane and observability)?
 $InstallHub = $true
 $HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
@@ -120,7 +120,7 @@ $TPCFComputeInstances = "1" # default is 1. Increase if planning to run many lar
 User provided cert for GoRouter. With $userProvidedCert set to false (default) the installer creates a self-signed cert
 ```bash
 # User provided cert (full chain) and private key for the apps and system wildcard domains
-# see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-0/tpcf/security_config.html for details on creating this cert and key
+# see https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/security_config.html for details on creating this cert and key
 $userProvidedCert = $false
 $CertPath         = "/Users/Tanzu/certs/fullchain.pem"
 $KeyPath          = "/Users/Tanzu/certs/privkey.pem"
@@ -128,7 +128,7 @@ $KeyPath          = "/Users/Tanzu/certs/privkey.pem"
 
 AI models
 ```bash
-# Tanzu AI Solutions config
+# AI Services config
 $OllamaEmbedModel = "nomic-embed-text"
 $OllamaChatToolsModel = "gpt-oss:20b"
 ```
@@ -151,8 +151,8 @@ $MinioUsername = "root"
 $MinioPassword = 'VMware1!'
 $MinioBucket   = "models"
 $EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
-$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/gpt-oss-20b.gguf
-$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b.txt"                                 #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/resolve/main/tanzu-modelfile-gpt-oss-20b.txt 
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/blob/main/gpt-oss-20b.gguf
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b-CPU.txt"                             #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/blob/main/tanzu-modelfile-gpt-oss-20b-CPU.txt
 $BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
 $MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 ```
@@ -160,7 +160,7 @@ $MCCLI                  = "/usr/local/bin/mc"                                   
 ## Run the script
 - Open a powershell console eg `pwsh`
 - Execute the script eg `tanzu-genai-platform-installer.ps1`
-- Installation can take up to 3 hours. Install time depends on the performance of your underlying infrastructure. 
+- Installation can take approximately 2 or more hours. Install time depends on the performance of your underlying infrastructure and options selected. 
 
 - Note; if this is your first time using Powershell with the VMware PowerCLI module, you may be prompted to participate in the VMware CEIP. You can accept/deny so not prompted again by running `Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $true or $false`
 
@@ -174,10 +174,10 @@ Below we will deploy a Spring chatbot application which can consume AI services 
 
 ## Prerequisites
 - Retrieve UAA admin credentials
-  - The script on completion will print out the admin credentials for Tanzu Apps Manager and CF CLI, alternatively, you can retrieve them via Tanzu Operations Manager > Small Footprint Tanzu Platform for Cloud Foundry > Credentials > UAA > Admin Credentials
+  - The script on completion will print out the admin credentials for Tanzu Apps Manager and CF CLI, alternatively, you can retrieve them via Tanzu Operations Manager > Small Footprint Elastic Application Runtime > Credentials > UAA > Admin Credentials
 
 - Download CF CLI and login to the platform
-  -  The above script on completion will print out how to download cf cli and how to run `cf login`, alternatively, see the [install docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/install-go-cli.html) and [login docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/getting-started.html)
+  -  The script on completion will print out how to download cf cli and how to run `cf login`, alternatively, see the [install docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/cf-cli-install-cf-cli.html) and [login docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/cf-cli-getting-started.html#login-foundation)
 
 - Create an Org and a Space
     - Create an Org
@@ -200,7 +200,7 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```bash
     sdk install java 21.0.7-oracle
     ```
-    - If already installed, make Java 21 the current candiate version, or which ever candidate version you have installed
+    - If already installed, make Java 21 the current candidate version, or which ever candidate version you have installed
     ```bash
     sdk use java 21.0.7-oracle
     ```
@@ -209,7 +209,7 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```bash
     sdk install maven
     ```
-    - If you have Maven already installed, make Maven 3.8 or later the current candiate version, or which ever candidate version you have installed
+    - If you have Maven already installed, make Maven 3.8 or later the current candidate version, or which ever candidate version you have installed
     ```bash
     sdk use maven 3.9.10
     ```
@@ -383,20 +383,18 @@ Congratulations, you have come to the end of this quick start guide. We have bar
 - [VMware Tanzu AI Solutions website](https://www.vmware.com/solutions/app-platform/ai)
 - [VMware Tanzu AI Solutions blogs, webinars, videos](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-AI-Solutions/Tanzu-AI-Solutions-resources.md)
 - [VMware Tanzu Platform Marketplace Services](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-Platform/Tanzu-Platform-Marketplace-Services.md)
-- [How to install MinIO object storage server to host Ollama and vLLM models offline](https://github.com/KeithRichardLee/VMware-Tanzu-Guides/blob/main/Tanzu-AI-Solutions/how-to-install-minio-to-host-ollama-and-vllm-models-offline.md)
 
 ## Documentation
-- [VMware Tanzu Operations Manager](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-1/tanzu-ops-manager/index.html)
-- [Small Footprint Tanzu Platform for Cloud Foundry](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/10-2/tpcf/concepts-overview.html)
-- [VMware Tanzu Postgres](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-for-postgres-on-cloud-foundry/10-1/postgres/index.html)
-- [VMware Tanzu GenAI](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform-services/genai-on-tanzu-platform-for-cloud-foundry/10-2/ai-cf/index.html)
-- [VMware Tanzu Healthwatch](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform-services/healthwatch-for-vmware-tanzu/2-3/healthwatch/index.html)
-- [VMware Tanzu Hub](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/index.html)
+- [Foundation Core (Tanzu Operations Manager)](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-2/tanzu-ops-manager/index.html)
+- [Elastic Application Runtime (Tanzu Platform for Cloud Foundry)](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/concepts-overview.html)
+- [Postgres](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-for-postgres-on-cloud-foundry/10-1/postgres/index.html)
+- [AI Services](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/ai-services/10-3/ai/index.html)
+- [Tanzu Hub](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-3/tnz-hub/index.html)
 
 ## Troubleshooting
 - An install log can be found where you run the script from with a file name of tanzu-genai-platform-installer.log. It contains verbose logging.
 
-- If you wish to just install upto a certain component, or skip a step, you can by changing the Installer Overrides flags in the Advanced Parameters section in the script
+- If you wish to just install up to a certain component, or skip a step, you can by changing the Installer Overrides flags in the Advanced Parameters section in the script
 ```bash
 # Installer Overrides
 $confirmDeployment = 1
@@ -426,11 +424,11 @@ PR's most welcome too!
 Below are the pre-checks the script performs...
 
 - Files
-  - VMware Tanzu Operations Manager OVA exists
-  - VMware Tanzu Platform for Cloud Foundry tile exists
-  - VMware Tanzu Postgres tile exists
-  - VMware Tanzu GenAI tile exists
-  - VMware Tanzu Hub tile exists
+  - Foundation Core (Tanzu Operations Manager) OVA exists
+  - Elastic Application Runtime (Tanzu Platform for Cloud Foundry) tile exists
+  - Postgres tile exists
+  - AI Services tile exists
+  - Tanzu Hub tile exists
 
 - Network
   - Network gateway can be reached
@@ -441,11 +439,11 @@ Below are the pre-checks the script performs...
   - Reserved range in valid format
   - Enough free IP addresses available
   - IP addresses are available
-  - Tanzu Operations Manager IP is in reserved range
+  - Foundation Core (Tanzu Operations Manager) IP is in reserved range
   - GoRouter is not in the reserved range
-  - Tanzu Operations Manager IP is available
+  - Foundation Core (Tanzu Operations Manager) IP is available
   - GoRouter IP is available
-  - Tanzu Operations Manager DNS entry is valid
+  - Foundation Core (Tanzu Operations Manager) DNS entry is valid
   - Apps domain wildcard DNS entry is valid
   - System domain wildcard DNS entry is valid
   - Apps domain resolves to GoRouter IP
@@ -466,12 +464,12 @@ Below are the pre-checks the script performs...
   - Enough storage available
 
 - Platform
-  - VMware Tanzu Operations Manager is not already installed
+  - Foundation Core (Tanzu Operations Manager) is not already installed
   - BOSH Director is not already installed
-  - VMware Tanzu Platform for Cloud Foundry is not already installed
-  - VMware Tanzu Postgres is not already installed
-  - VMware Tanzu GenAI is not already installed
-  - VMware Tanzu Platform license key is in valid format
+  - Elastic Application Runtime (Tanzu Platform for Cloud Foundry) is not already installed
+  - Postgres is not already installed
+  - AI Service is not already installed
+  - Tanzu Platform license key is in valid format
 
 - Other
   - OM CLI is installed
@@ -480,10 +478,10 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Tanzu Operations Manager:** ops-manager-vsphere-3.2.0.ova
-- **Tanzu Platform for Cloud Foundry small footprint:** srt-10.3.0-build.12.pivotal
-- **VMware Postgres:** postgres-10.1.1-build.1.pivotal
-- **Tanzu GenAI:** genai-10.3.0.pivotal
+- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.0.ova
+- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.0-build.12.pivotal
+- **Postgres:** postgres-10.1.1-build.1.pivotal
+- **AI Services:** genai-10.3.0.pivotal
 - **Tanzu Hub:** tanzu-hub-10.3.0.pivotal
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.1
