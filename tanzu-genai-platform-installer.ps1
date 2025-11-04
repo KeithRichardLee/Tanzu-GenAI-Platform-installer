@@ -7,32 +7,31 @@ param(
   [switch]$Start
 )
 
-# PowerShell script which results in the deployment of VMware Tanzu Platform with GenAI capabilities
+# PowerShell script which results in the deployment of VMware Tanzu Platform with AI capabilities
 # 
 # Script will... 
 # - Validate all inputs
-# - Deploy VMware Tanzu Operations Manager OVA
-# - Configure authentication for VMware Tanzu Operations Manager
+# - Deploy Foundation Core (Tanzu Operations Manager) OVA
+# - Configure authentication for Foundation Core (Tanzu Operations Manager)
 # - Configure and deploy BOSH Director
-# - Configure and deploy VMware Tanzu Platform for Cloud Foundry
-# - Configure and deploy VMware Tanzu Postgres
-# - Configure and deploy VMware Tanzu GenAI
-# - Configure and deploy VMware Tanzu Healthwatch & Healthwatch Exporter (optional)
-# - Configure and deploy VMware Tanzu Hub (optional)
+# - Configure and deploy Elastic Application Runtime
+# - Configure and deploy Postgres
+# - Configure and deploy AI Services
+# - Configure and deploy Hub (optional)
 # - Configure and deploy MinIO object store (optional)
 #
 # Additional script functionality...
-# - run the script with "stop" or "start" to stop / start the whole platform
+# - run the script with "stop" or "start" to stop / start the whole Tanzu Platform
 #
 ############################################################################################
 
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.3.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Operations%20Manager
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.3-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Platform%20for%20Cloud%20Foundry
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware+Tanzu+for+Postgres+on+Cloud+Foundry
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.5.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=GenAI%20on%20Tanzu%20Platform%20for%20Cloud%20Foundry
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.0.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.0-build.12.pivotal"           #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform 
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.0.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -60,14 +59,9 @@ $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system an
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
 $TPCFLicenseKey = ""                      #License key required for 10.2 and later
 
-### Install Healthwatch (observability)?
-$InstallHealthwatch = $false
-$HealthwatchTile         = "/Users/Tanzu/Downloads/healthwatch-2.3.3-build.21.pivotal"                #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
-$HealthwatchExporterTile = "/Users/Tanzu/Downloads/healthwatch-pas-exporter-2.3.3-build.21.pivotal"   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Healthwatch
-
-### Install Tanzu Hub (global control plane)?
+### Install Tanzu Hub (global control plane & observability)?
 $InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.2.1.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.3.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN = "FILL-ME-IN"
 
 ### end of required inputs
@@ -132,12 +126,12 @@ $KeyPath = "/Users/Tanzu/certs/TP/privkey.pem"
 
 ##############################
 
-# Install Tanzu AI Solutions?
-$InstallTanzuAI = $true 
+# Install AI Services?
+$InstallTanzuAI = $true
 
-# Tanzu AI Solutions config 
+# AI Services config
 $OllamaEmbedModel = "nomic-embed-text"
-$OllamaChatToolsModel = "mistral-nemo:12b-instruct-2407-q4_K_M"
+$OllamaChatToolsModel = "gpt-oss:20b"
 
 # Internet Restricted Env?
 # Be default, this script pulls the above models from Ollama (registry.ollama.ai). For internet restricted environments, you can download the models 
@@ -156,8 +150,8 @@ $MinioUsername = "root"
 $MinioPassword = 'VMware1!'
 $MinioBucket   = "models"
 $EmbedModelPath         = "/Users/Tanzu/Downloads/nomic-embed-text-v1.5.f16.gguf"                                  #Download from https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf
-$ChatToolsModelPath     = "/Users/Tanzu/Downloads/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"                          #Download from https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/resolve/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf
-$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/mistral-nemo-instruct-2407-Q4_K_M_modelfile.txt"                 #Download from https://huggingface.co/keithrichardlee/mistral-nemo/resolve/main/mistral-nemo-12b-instruct-2407-q4_K_M_modelfile.txt
+$ChatToolsModelPath     = "/Users/Tanzu/Downloads/gpt-oss-20b.gguf"                                                #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/blob/main/tanzu-modelfile-gpt-oss-20b-CPU.txt
+$ChatToolsModelFilePath = "/Users/Tanzu/Downloads/tanzu-modelfile-gpt-oss-20b-CPU.txt"                             #Download from https://huggingface.co/tehkuhnz/gpt-oss-20b/blob/main/tanzu-modelfile-gpt-oss-20b-CPU.txt
 $BOSHCLI                = "/usr/local/bin/bosh"                                                                    #Download from https://github.com/cloudfoundry/bosh-cli/releases
 $MCCLI                  = "/usr/local/bin/mc"                                                                      #Download from https://github.com/minio/mc 
 
@@ -189,12 +183,6 @@ $ProductRequirements = @{
         CPUGHz = 2
         MemoryGB = 26
         StorageGB = 140
-    }
-    "HealthWatch" = @{
-        IP = 11
-        CPUGHz = 1
-        MemoryGB = 16
-        StorageGB = 100
     }
     "Hub" = @{
         IP = 13
@@ -322,7 +310,6 @@ $setupTPCF = 1
 $setupMinio = $InstallMinIO
 $setupPostgres = $InstallTanzuAI
 $setupGenAI = $InstallTanzuAI
-$setupHealthwatch = $InstallHealthwatch
 $setupHub = $InstallHub
 $ignoreWarnings = $false
 
@@ -347,7 +334,7 @@ Function My-Logger {
         Write-Host -NoNewline -ForegroundColor White "[$timeStamp]"
         Write-Host -ForegroundColor $color " $message"
     }
-    
+
     # Always write to log file
     $logMessage | Out-File -Append -LiteralPath $verboseLogFile
 }
@@ -356,26 +343,26 @@ function Check-productDeployed {
     param (
         [string]$productName
     )
-    
+
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "products")
     $tableText = & $OMCLI $configArgs 2> $null
-    
+
     # Split the table into lines
     $lines = $tableText -split "`n"
-    
+
     # Find header row to determine column positions
     $headerRow = $lines | Where-Object { $_ -match "\|\s+NAME\s+\|" }
-    
+
     if (-not $headerRow) {
         # Could not find header row in the table
         return $false
     }
-    
+
     # Find the index of the NAME and DEPLOYED columns
     $headerParts = $headerRow -split "\|"
     $nameIndex = 0
     $deployedIndex = 0
-    
+
     for ($i = 1; $i -lt $headerParts.Count; $i++) {
         if ($headerParts[$i] -match "^\s*NAME\s*$") {
             $nameIndex = $i
@@ -384,7 +371,7 @@ function Check-productDeployed {
             $deployedIndex = $i
         }
     }
-    
+
     # Find the item row
     $productRow = $lines | Where-Object { $_ -match "\|\s*$productName\s*\|" }
     
@@ -392,14 +379,14 @@ function Check-productDeployed {
         # Could not find a row for '$productName' in the table
         return $false
     }
-    
+
     # Extract the deployed value for the item
     $productRowParts = $productRow -split "\|"
     $productDeployedValue = $productRowParts[$deployedIndex].Trim()
-    
+
     # Check if there's a value in the DEPLOYED column
     $hasDeployedEntry = -not [string]::IsNullOrWhiteSpace($productDeployedValue)
-    
+
     return $hasDeployedEntry
 }
 
@@ -1283,7 +1270,6 @@ function Calculate-TotalRequirements {
         "OpsMan" = $true
         "TPCF" = $true
         "TanzuAI" = $InstallTanzuAI
-        "HealthWatch" = $InstallHealthwatch
         "Hub" = $InstallHub
         "Minio" = $InstallMinIO
     }
@@ -2880,7 +2866,7 @@ function Start-TanzuPlatform {
     My-Logger "======================================================"
     My-Logger "                Next steps...                         "
     My-Logger "======================================================"
-    My-Logger "Log into Tanzu Operations Manager"
+    My-Logger "Log into Foundation Core (Tanzu Operations Manager)"
     My-Logger "- Open a browser to https://$OpsManagerFQDN"
     My-Logger "- Username: $OpsManagerAdminUsername"
     My-Logger "- Password: $OpsManagerAdminPassword"
@@ -2913,20 +2899,14 @@ if($confirmDeployment -eq 1) {
     Write-Host -ForegroundColor Magenta "`nPlease confirm the following configuration will be deployed:`n"
 
     Write-Host -ForegroundColor Yellow "---- Installer required files ---- "
-    Write-Host -NoNewline -ForegroundColor Green "Tanzu Operations Manager OVA path: "
+    Write-Host -NoNewline -ForegroundColor Green "Foundation Core (Tanzu Operations Manager) OVA path: "
     Write-Host -ForegroundColor White $OpsManOVA
-    Write-Host -NoNewline -ForegroundColor Green "Tanzu Platform for Cloud Foundry tile path: "
+    Write-Host -NoNewline -ForegroundColor Green "Elastic Application Runtime (Tanzu Platform for Cloud Foundry) tile path: "
     Write-Host -ForegroundColor White $TPCFTile
-    Write-Host -NoNewline -ForegroundColor Green "VMware Postgres tile path: "
+    Write-Host -NoNewline -ForegroundColor Green "Postgres tile path: "
     Write-Host -ForegroundColor White $PostgresTile
-    Write-Host -NoNewline -ForegroundColor Green "Tanzu GenAI tile path: "
+    Write-Host -NoNewline -ForegroundColor Green "AI Services (Tanzu GenAI) tile path: "
     Write-Host -ForegroundColor White $GenAITile
-    if ($InstallHealthwatch) {
-        Write-Host -NoNewline -ForegroundColor Green "Healthwatch tile path: "
-        Write-Host -ForegroundColor White $HealthwatchTile
-        Write-Host -NoNewline -ForegroundColor Green "Healthwatch Exporter tile path: "
-        Write-Host -ForegroundColor White $HealthwatchExporterTile
-    }
     if ($InstallHub) {
         Write-Host -NoNewline -ForegroundColor Green "Tanzu Hub tile path: "
         Write-Host -ForegroundColor White $HubTile
@@ -2950,7 +2930,7 @@ if($confirmDeployment -eq 1) {
     Write-Host -NoNewline -ForegroundColor Green "Disks folder: "
     Write-Host -ForegroundColor White $BOSHvCenterDiskFolder
 
-    Write-Host -ForegroundColor Yellow "`n---- Tanzu Operations Manager Configuration ----"
+    Write-Host -ForegroundColor Yellow "`n---- Foundation Core (Tanzu Operations Manager) Configuration ----"
     Write-Host -NoNewline -ForegroundColor Green "IP Address: "
     Write-Host -ForegroundColor White $OpsManagerIPAddress
     Write-Host -NoNewline -ForegroundColor Green "FQDN: "
@@ -2994,7 +2974,7 @@ if($confirmDeployment -eq 1) {
     Write-Host -NoNewline -ForegroundColor Green "Include Tanzu Ops Manager Root CA in Trusted Certs: "
     Write-Host -ForegroundColor White "True"
 
-    Write-Host -ForegroundColor Yellow "`n---- Tanzu Platform for Cloud Foundry Configuration ----"
+    Write-Host -ForegroundColor Yellow "`n---- Elastic Application Runtime (Tanzu Platform for Cloud Foundry) Configuration ----"
     Write-Host -NoNewline -ForegroundColor Green "AZ: "
     Write-Host -ForegroundColor White $BOSHAZAssignment
     Write-Host -NoNewline -ForegroundColor Green "Network: "
@@ -3017,7 +2997,7 @@ if($confirmDeployment -eq 1) {
     }
 
     if ($InstallTanzuAI) {
-        Write-Host -ForegroundColor Yellow "`n---- Tanzu AI Solutions Configuration ----"
+        Write-Host -ForegroundColor Yellow "`n---- AI Services (Tanzu GenAI) Configuration ----"
         Write-Host -NoNewline -ForegroundColor Green "AZ: "
         Write-Host -ForegroundColor White $BOSHAZAssignment
         Write-Host -NoNewline -ForegroundColor Green "Network: "
@@ -3026,14 +3006,6 @@ if($confirmDeployment -eq 1) {
         Write-Host -ForegroundColor White $OllamaEmbedModel
         Write-Host -NoNewline -ForegroundColor Green "Ollama chat & tools model: "
         Write-Host -ForegroundColor White $OllamaChatToolsModel
-    }
-
-    if ($InstallHealthwatch) {
-        Write-Host -ForegroundColor Yellow "`n---- Healthwatch Configuration ----"
-        Write-Host -NoNewline -ForegroundColor Green "AZ: "
-        Write-Host -ForegroundColor White $BOSHAZAssignment
-        Write-Host -NoNewline -ForegroundColor Green "Network: "
-        Write-Host -ForegroundColor White $BOSHNetworkAssignment
     }
 
     if ($InstallHub) {
@@ -3085,46 +3057,30 @@ if($preCheck -eq 1) {
     }
 
     # Verify if Tanzu Operations Manager OVA exists
-    My-Logger "Validating if Tanzu Operations Manager OVA file exists at $OpsManOVA" -LogOnly
-    Run-Test -TestName "Files: Tanzu Operations Manager OVA file exists" -TestCode {
+    My-Logger "Validating if Foundation Core (Tanzu Operations Manager) OVA file exists at $OpsManOVA" -LogOnly
+    Run-Test -TestName "Files: Foundation Core (Tanzu Operations Manager) OVA file exists" -TestCode {
         if (Test-Path $OpsManOVA) { return $true } else { return "Files: Unable to find $OpsManOVA" }
     }
 
     # Verify if Tanzu Platform for Cloud Foundry tile file exists
-    My-Logger "Validating if Tanzu Platform for Cloud Foundry tile file exists at $TPCFTile" -LogOnly
-    Run-Test -TestName "Files: Tanzu Platform for Cloud Foundry tile file exists" -TestCode {
+    My-Logger "Validating if Elastic Application Runtime (Tanzu Platform for Cloud Foundry) tile file exists at $TPCFTile" -LogOnly
+    Run-Test -TestName "Files: Elastic Application Runtime (Tanzu Platform for Cloud Foundry) tile file exists" -TestCode {
         if (Test-Path $TPCFTile) { return $true } else { return "Files: Unable to find $TPCFTile" }
     }
 
     # Verify if VMware Postgres tile file exists
     if ($InstallTanzuAI) {
-        My-Logger "Validating if VMware Postgres tile file exists at $PostgresTile" -LogOnly
-        Run-Test -TestName "Files: VMware Postgres tile file exists" -TestCode {
+        My-Logger "Validating if Postgres tile file exists at $PostgresTile" -LogOnly
+        Run-Test -TestName "Files: Postgres tile file exists" -TestCode {
             if (Test-Path $PostgresTile) { return $true } else { return "Files: Unable to find $PostgresTile" }
         }
     }
 
     # Verify if Tanzu GenAI tile file exists
     if ($InstallTanzuAI) {
-        My-Logger "Validating if Tanzu GenAI tile file exists at $GenAITile" -LogOnly
-        Run-Test -TestName "Files: Tanzu GenAI tile file exists" -TestCode {
+        My-Logger "Validating if AI Services (Tanzu GenAI) tile file exists at $GenAITile" -LogOnly
+        Run-Test -TestName "Files: AI Services (Tanzu GenAI) tile file exists" -TestCode {
             if (Test-Path $GenAITile) { return $true } else { return "Files: Unable to find $GenAITile" }
-        }
-    }
-
-    # Verify if Healthwatch tile file exists
-    if ($InstallHealthwatch) {
-        My-Logger "Validating if Healthwatch tile file exists at $HealthwatchTile" -LogOnly
-        Run-Test -TestName "Files: Healthwatch tile file exists" -TestCode {
-            if (Test-Path $HealthwatchTile) { return $true } else { return "Files: Unable to find $HealthwatchTile" }
-        }
-    }
-
-    # Verify if Healthwatch Exporter tile file exists
-    if ($InstallHealthwatch -eq $true) {
-        My-Logger "Validating if Healthwatch Exporter tile file exists at $HealthwatchExporterTile" -LogOnly
-        Run-Test -TestName "Files: Healthwatch Exporter tile file exists" -TestCode {
-            if (Test-Path $HealthwatchExporterTile) { return $true } else { return "Files: Unable to find $HealthwatchExporterTile" }
         }
     }
 
@@ -3291,17 +3247,17 @@ if($preCheck -eq 1) {
     }
 
     # verify Ops Man IP is in the reserved range
-    My-Logger "Validating the Tanzu Operations Manager IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange" -LogOnly
-    Run-Test -TestName "Network: Tanzu Operations Manager IP is in the reserved range" -TestCode {
+    My-Logger "Validating the Foundation Core (Tanzu Operations Manager) IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange" -LogOnly
+    Run-Test -TestName "Network: Foundation Core (Tanzu Operations Manager) IP is in the reserved range" -TestCode {
         try {
             $opsmanResult = Test-IPAddressAvailability -NetworkCIDR $VMNetworkCIDR -IPAddress $OpsManagerIPAddress -ExcludedIPs $BOSHNetworkReservedRange
             if ($opsmanResult -ne $true) {
                 return $true
             } else {
-                return "Network: Tanzu Operations Manager IP $OpsManagerIPAddress is not in the reserved range $BOSHNetworkReservedRange"
+                return "Network: Foundation Core (Tanzu Operations Manager) IP $OpsManagerIPAddress is not in the reserved range $BOSHNetworkReservedRange"
             }
         } catch {
-            return "Error verifying if Tanzu Operations Manager IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange. Error: $($_.Exception.Message)"
+            return "Error verifying if Foundation Core (Tanzu Operations Manager) IP $OpsManagerIPAddress is in the reserved range $BOSHNetworkReservedRange. Error: $($_.Exception.Message)"
         }
     }
 
@@ -3321,12 +3277,12 @@ if($preCheck -eq 1) {
     }
 
     # Verify Ops Man IP is available
-    My-Logger "Validating if Tanzu Operations Manager IP $OpsManagerIPAddress is available" -LogOnly
-    Run-Test -TestName "Network: Tanzu Operations Manager IP available" -TestCode {
+    My-Logger "Validating if Foundation Core (Tanzu Operations Manager) IP $OpsManagerIPAddress is available" -LogOnly
+    Run-Test -TestName "Network: Foundation Core (Tanzu Operations Manager) IP available" -TestCode {
         try {
             $ipResult = Test-Connection -ComputerName $OpsManagerIPAddress -Count 1 -Quiet -WarningAction SilentlyContinue -ErrorAction Stop
             if ($ipResult) {
-                return "Network: Tanzu Operations Manager IP address $OpsManagerIPAddress is already in use"
+                return "Network: Foundation Core (Tanzu Operations Manager) IP address $OpsManagerIPAddress is already in use"
             } else {
                 return $true # IP is available if not reachable
             }
@@ -3351,8 +3307,8 @@ if($preCheck -eq 1) {
     }
 
     # Verify Ops Man DNS
-    My-Logger "Validating Tanzu Operations Manager DNS entry $OpsManagerFQDN" -LogOnly
-    Run-Test -TestName "Network: Tanzu Operations Manager DNS entry" -TestCode {
+    My-Logger "Validating Foundation Core (Tanzu Operations Manager) DNS entry $OpsManagerFQDN" -LogOnly
+    Run-Test -TestName "Network: Foundation Core (Tanzu Operations Manager) DNS entry" -TestCode {
         try {
             $dnsResult = Test-DNSLookup -FQDN $OpsManagerFQDN -DNSServer $VMDNS
             if ($dnsResult.IsValid -eq $true) {
@@ -3682,12 +3638,12 @@ if($preCheck -eq 1) {
     }
 
     # Check if Ops Man is already installed
-    My-Logger "Validating if Tanzu Operations Manager is not already installed" -LogOnly
+    My-Logger "Validating if Foundation Core (Tanzu Operations Manager) is not already installed" -LogOnly
     $global:opsmanResult = $null
-    Run-Test -TestName "Platform: Tanzu Operations Manager is not installed" -TestCode {
+    Run-Test -TestName "Platform: Foundation Core (Tanzu Operations Manager) is not installed" -TestCode {
         try {
             $global:opsmanResult = Invoke-WebRequest -Uri https://$OpsManagerFQDN -SkipCertificateCheck -Method GET -TimeoutSec 3 -ErrorAction stop
-            return "Platform: Tanzu Operations Manager is already installed"
+            return "Platform: Foundation Core (Tanzu Operations Manager) is already installed"
         } catch {
             return $true
         }
@@ -3728,72 +3684,36 @@ if($preCheck -eq 1) {
 
         # Check if VMware Postgres is already installed
         if ($InstallTanzuAI) {
-            My-Logger "Validating if VMware Postgres is not already installed" -LogOnly
-            Run-Test -TestName "Platform: VMware Postgres is not installed" -TestCode {
+            My-Logger "Validating if Postgres is not already installed" -LogOnly
+            Run-Test -TestName "Platform: Postgres is not installed" -TestCode {
                 try {
                     $productToCheck = "postgres"
                     $deployedResult = Check-productDeployed -productName $productToCheck
                     if (!$deployedResult){
                         return $true
                     } else {
-                        return "Platform: VMware Postgres is already installed"
+                        return "Platform: Postgres is already installed"
                     }
                 } catch {
-                    return "Unable to confirm if VMware Postgres is already installed. Error: $($_.Exception.Message)"
+                    return "Unable to confirm if Postgres is already installed. Error: $($_.Exception.Message)"
                 }
             }
         }
 
-        # Check if Tanzu GenAI is already installed
+        # Check if AI Services (Tanzu GenAI) is already installed
         if ($InstallTanzuAI) {
-            My-Logger "Validating if Tanzu GenAI is not already installed" -LogOnly
-            Run-Test -TestName "Platform: Tanzu GenAI is not installed" -TestCode {
+            My-Logger "Validating if AI Services (Tanzu GenAI) is not already installed" -LogOnly
+            Run-Test -TestName "Platform: AI Services (Tanzu GenAI) is not installed" -TestCode {
                 try {
                     $productToCheck = "genai"
                     $deployedResult = Check-productDeployed -productName $productToCheck
                     if (!$deployedResult){
                         return $true
                     } else {
-                        return "Platform: Tanzu GenAI is already installed"
+                        return "Platform: AI Services (Tanzu GenAI) is already installed"
                     }
                 } catch {
-                    return "Unable to confirm if Tanzu GenAI is already installed. Error: $($_.Exception.Message)"
-                }
-            }
-        }
-
-        # Check if Healthwatch is already installed
-        if ($InstallHealthwatch) {
-            My-Logger "Validating if Healthwatch is not already installed" -LogOnly
-            Run-Test -TestName "Platform: Healthwatch is not installed" -TestCode {
-                try {
-                    $productToCheck = "p-healthwatch2"
-                    $deployedResult = Check-productDeployed -productName $productToCheck
-                    if (!$deployedResult){
-                        return $true
-                    } else {
-                        return "Platform: Healthwatch is already installed"
-                    }
-                } catch {
-                    return "Unable to confirm if Healthwatch is already installed. Error: $($_.Exception.Message)"
-                }
-            }
-        }
-
-        # Check if Healthwatch Exporter is already installed
-        if ($InstallHealthwatch) {
-            My-Logger "Validating if Healthwatch Exporter is not already installed" -LogOnly
-            Run-Test -TestName "Platform: Healthwatch Exporter is not installed" -TestCode {
-                try {
-                    $productToCheck = "p-healthwatch2-pas-exporter"
-                    $deployedResult = Check-productDeployed -productName $productToCheck
-                    if (!$deployedResult){
-                        return $true
-                    } else {
-                        return "Platform: Healthwatch Exporter is already installed"
-                    }
-                } catch {
-                    return "Unable to confirm if Healthwatch Exporter is already installed. Error: $($_.Exception.Message)"
+                    return "Unable to confirm if AI Services (Tanzu GenAI) is already installed. Error: $($_.Exception.Message)"
                 }
             }
         }
@@ -3869,12 +3789,12 @@ if($preCheck -eq 1) {
 
 if($deployOpsManager -eq 1) {
     
-    My-Logger "Installing Tanzu Operations Manager..."
+    My-Logger "Installing Foundation Core (Tanzu Operations Manager)..."
 
     # Check if already installed
     try {
         $opsmanResult = Invoke-WebRequest -Uri https://$OpsManagerFQDN -SkipCertificateCheck -Method GET -TimeoutSec 3 -ErrorAction stop
-        My-Logger "[Error] Tanzu Operations Manager is already installed" -level Error -color Red
+        My-Logger "[Error] Foundation Core (Tanzu Operations Manager) is already installed" -level Error -color Red
         exit
     } catch {
         #catch any exception rather than printing it to console
@@ -3906,8 +3826,8 @@ if($deployOpsManager -eq 1) {
     Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false -Scope Session | Out-Null
     $opsmgr_vm = Import-VApp -Source $OpsManOVA -OvfConfiguration $opsMgrOvfCOnfig -Name $OpsManagerDisplayName -Location $resourcepool -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
-    My-Logger "Tanzu Operations Manager installed"
-    My-Logger "Powering on Tanzu Operations Manager..."
+    My-Logger "Foundation Core (Tanzu Operations Manager) installed"
+    My-Logger "Powering on Foundation Core (Tanzu Operations Manager)..."
     $opsmgr_vm | Start-Vm -RunAsync | Out-Null
 
     #Disconnect from vCenter
@@ -3915,7 +3835,7 @@ if($deployOpsManager -eq 1) {
 }
 
 if($setupOpsManager -eq 1) {
-    My-Logger "Waiting for Tanzu Operations Manager to come online..."
+    My-Logger "Waiting for Foundation Core (Tanzu Operations Manager) to come online..."
     while (1) {
         try {
             $results = Invoke-WebRequest -Uri https://$OpsManagerFQDN -SkipCertificateCheck -Method GET
@@ -3923,12 +3843,12 @@ if($setupOpsManager -eq 1) {
                 break
             }
         } catch {
-            My-Logger "Tanzu Operations Manager is not ready yet, sleeping 30 seconds..."
+            My-Logger "Foundation Core (Tanzu Operations Manager) is not ready yet, sleeping 30 seconds..."
             Start-Sleep 30
         }
     }
 
-    My-Logger "Setting up Tanzu Operations Manager authentication..."
+    My-Logger "Setting up Foundation Core (Tanzu Operations Manager) authentication..."
 
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-authentication", "--username", "$OpsManagerAdminUsername", "--password", "$OpsManagerAdminPassword", "--decryption-passphrase", "$OpsManagerDecryptionPassword")
     My-Logger "${OMCLI} $configArgs" -LogOnly
@@ -3937,7 +3857,7 @@ if($setupOpsManager -eq 1) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
         exit
     }
-    My-Logger "Tanzu Operations Manager authentication configured"
+    My-Logger "Foundation Core (Tanzu Operations Manager) authentication configured"
 }
 
 if($setupBOSHDirector -eq 1) {
@@ -4055,13 +3975,65 @@ resource-configuration:
     My-Logger "BOSH Director successfully installed"
 }
 
+if($setupMinio -eq 1) {
+
+    # Create MinIO manifest files with env specific paramters
+    Create-MinioManifestFiles
+
+    # Retrieve BOSH env parameters from Ops Man and set them
+    Set-BoshEnvFromOpsMan `
+      -OpsManUrl "https://$OpsManagerFQDN" `
+      -Username "admin" `
+      -Password $OpsManagerAdminPassword `
+      -SkipTlsValidation `
+      -TestConnection
+
+    # Upload Minio BOSH Release to the BOSH Director
+    Upload-BoshRelease `
+      -Name 'MinIO BOSH Release' `
+      -Sha1 $MinioSHA `
+      -URL $MinioURL
+
+    Install-Minio
+
+    # Retieve MinIO BOSH Release VM IP so can update DNS
+    $boshArgs = @('-d', 'minio', 'vms', '--json')
+    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
+    $MinioIP = (& $BOSHCLI @boshArgs | ConvertFrom-Json).Tables[0].Rows `
+        | Select-Object -ExpandProperty ips `
+        | ForEach-Object { ($_ -split '[,\s]+')[0] } `
+        | Select-Object -First 1
+     My-Logger "MinIO BOSH Release VM IP: $MinioIP" -LogOnly
+
+    # Create MinIO bucket and set anonymous read access
+     Create-MinioBucket `
+       -alias 'minio' `
+       -server "http://$($MinioIP):9000" `
+       -accesskey $MinioUsername `
+       -secretkey $MinioPassword `
+       -bucket $MinioBucket
+
+    #Upload embeddding model to MinIO bucket
+    Upload-Model `
+      -alias 'minio' `
+      -bucket $MinioBucket `
+      -model $EmbedModelPath
+
+    #Upload chat tools model to MinIO bucket
+    Upload-Model `
+      -alias 'minio' `
+      -bucket $MinioBucket `
+      -model $ChatToolsModelPath
+
+}
+
 if($setupTPCF -eq 1) {
     
     # Verify if TPCF is already installed
     $productToCheck = "cf"
     $deployedResult = Check-productDeployed -productName $productToCheck
     if ($deployedResult){
-        My-Logger "[Error] Tanzu Platform for Cloud Foundry is already installed" -level Error -color Red
+        My-Logger "[Error] Elastic Application Runtime (Tanzu Platform for Cloud Foundry) is already installed" -level Error -color Red
         exit
     }
     
@@ -4070,7 +4042,7 @@ if($setupTPCF -eq 1) {
     $TPCFVersion = & "$OMCLI" product-metadata --product-path $TPCFTile --product-version
 
     # Upload tile
-    My-Logger "Uploading Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager (can take up to 15 minutes)..."
+    My-Logger "Uploading Elastic Application Runtime (Tanzu Platform for Cloud Foundry) tile to Foundation Core (Tanzu Operations Manager) (can take up to 10 minutes)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$TPCFTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4080,7 +4052,7 @@ if($setupTPCF -eq 1) {
     }
 
     # Stage tile
-    My-Logger "Adding Tanzu Platform for Cloud Foundry tile to Tanzu Operations Manager..."
+    My-Logger "Adding Elastic Application Runtime (Tanzu Platform for Cloud Foundry) tile to Foundation Core (Tanzu Operations Manager)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$TPCFProductName", "--product-version", "$TPCFVersion")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4166,26 +4138,13 @@ resource-config:
     $TPCFyaml = "tpcf-config.yaml"
     $TPCFPayload > $TPCFyaml
 
-    My-Logger "Applying Tanzu Platform for Cloud Foundry configuration..."
+    My-Logger "Applying Elastic Application Runtime (Tanzu Platform for Cloud Foundry) configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$TPCFyaml")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
     if ($LASTEXITCODE -ne 0) {
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
         exit
-    }
-
-    # To improve install time, don't install TPCF just yet if postgres and GenAI tiles are to be installed also
-    if($InstallTanzuAI -eq 0) {
-        My-Logger "Installing Tanzu Platform for Cloud Foundry (can take up to 60 minutes)..."
-        $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes")
-        if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
-        My-Logger "${OMCLI} $installArgs" -LogOnly
-        & $OMCLI $installArgs 2>&1 >> $verboseLogFile
-        if ($LASTEXITCODE -ne 0) {
-            My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-            exit
-        }
     }
 
 }
@@ -4196,7 +4155,7 @@ if($setupPostgres -eq 1) {
     $productToCheck = "postgres"
     $deployedResult = Check-productDeployed -productName $productToCheck
     if ($deployedResult){
-        My-Logger "[Error] VMware Postgres tile is already installed" -level Error -color Red
+        My-Logger "[Error] Postgres tile is already installed" -level Error -color Red
         exit
     }
 
@@ -4205,7 +4164,7 @@ if($setupPostgres -eq 1) {
     $PostgresVersion = & "$OMCLI" product-metadata --product-path $PostgresTile --product-version
 
     # Upload tile
-    My-Logger "Uploading VMware Postgres tile to Tanzu Operations Manager..."
+    My-Logger "Uploading Postgres tile to Foundation Core (Tanzu Operations Manager)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$PostgresTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4215,7 +4174,7 @@ if($setupPostgres -eq 1) {
     }
 
     # Stage tile
-    My-Logger "Adding VMware Postgres tile to Tanzu Operations Manager..."
+    My-Logger "Adding Postgres tile to Foundation Core (Tanzu Operations Manager)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$PostgresProductName", "--product-version", "$PostgresVersion")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4249,7 +4208,7 @@ network-properties:
     $Postgresyaml = "postgres-config.yaml"
     $PostgresPayload > $Postgresyaml
 
-    My-Logger "Applying VMware Postgres configuration..."
+    My-Logger "Applying Postgres configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$Postgresyaml")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4257,69 +4216,6 @@ network-properties:
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
         exit
     }
-
-    My-Logger "Installing Tanzu Platform for Cloud Foundry and VMware Postgres (can take up to 75 minutes)..."
-    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes")
-    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
-    My-Logger "${OMCLI} $installArgs" -LogOnly
-    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-    
-    My-Logger "Tanzu Platform for Cloud Foundry and VMware Postgres successfully installed"
-}
-
-if($setupMinio -eq 1) {
-
-    # Create MinIO manifest files with env specific paramters
-    Create-MinioManifestFiles
-
-    # Retrieve BOSH env parameters from Ops Man and set them
-    Set-BoshEnvFromOpsMan `
-      -OpsManUrl "https://$OpsManagerFQDN" `
-      -Username "admin" `
-      -Password $OpsManagerAdminPassword `
-      -SkipTlsValidation `
-      -TestConnection
-
-    # Upload Minio BOSH Release to the BOSH Director
-    Upload-BoshRelease `
-      -Name 'MinIO BOSH Release' `
-      -Sha1 $MinioSHA `
-      -URL $MinioURL
-
-    Install-Minio
-
-    # Retieve MinIO BOSH Release VM IP so can update DNS
-    $boshArgs = @('-d', 'minio', 'vms', '--json')
-    My-Logger "${BOSHCLI} $boshArgs" -LogOnly
-    $MinioIP = (& $BOSHCLI @boshArgs | ConvertFrom-Json).Tables[0].Rows `
-        | Select-Object -ExpandProperty ips `
-        | ForEach-Object { ($_ -split '[,\s]+')[0] } `
-        | Select-Object -First 1
-     My-Logger "MinIO BOSH Release VM IP: $MinioIP" -LogOnly
-
-    # Create MinIO bucket and set anonymous read access
-     Create-MinioBucket `
-       -alias 'minio' `
-       -server "http://$($MinioIP):9000" `
-       -accesskey $MinioUsername `
-       -secretkey $MinioPassword `
-       -bucket $MinioBucket
-
-    #Upload embeddding model to MinIO bucket
-    Upload-Model `
-      -alias 'minio' `
-      -bucket $MinioBucket `
-      -model $EmbedModelPath
-
-    #Upload chat tools model to MinIO bucket
-    Upload-Model `
-      -alias 'minio' `
-      -bucket $MinioBucket `
-      -model $ChatToolsModelPath
 
 }
 
@@ -4329,7 +4225,7 @@ if($setupGenAI -eq 1) {
     $productToCheck = "genai"
     $deployedResult = Check-productDeployed -productName $productToCheck
     if ($deployedResult){
-        My-Logger "[Error] Tanzu GenAI tile is already installed" -level Error -color Red
+        My-Logger "[Error] AI Services (Tanzu GenAI) tile is already installed" -level Error -color Red
         exit
     }
 
@@ -4338,7 +4234,7 @@ if($setupGenAI -eq 1) {
     $GenAIVersion = & "$OMCLI" product-metadata --product-path $genAITile --product-version
 
     # Upload tile
-    My-Logger "Uploading Tanzu GenAI tile to Tanzu Operations Manager..."
+    My-Logger "Uploading AI Services (Tanzu GenAI) tile to Foundation Core (Tanzu Operations Manager)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$GenAITile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4348,7 +4244,7 @@ if($setupGenAI -eq 1) {
     }
 
     # Stage tile
-    My-Logger "Adding Tanzu GenAI tile to Tanzu Operations Manager..."
+    My-Logger "Adding AI Services (Tanzu GenAI) tile to Foundation Core (Tanzu Operations Manager)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$GenAIProductName", "--product-version", "$GenAIVersion")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4394,24 +4290,20 @@ product-name: genai
 product-properties:
   .controller.plans:
     value:
-    - binding_credential_format: legacy
+    - binding_credential_format: single-model
       cf_access_enabled: true
       description: A high-performing open embedding model
       model_handles: $OllamaEmbedModel
       name: embedding-model
-      requests_per_minute: null
+      policy_handles: null
       run_release_tests: true
-      tkgi_access_enabled: false
-      tokens_per_minute: null
-    - binding_credential_format: legacy
+    - binding_credential_format: single-model
       cf_access_enabled: true
       description: A model with chat and tool capabilities
       model_handles: $OllamaChatToolsModel
       name: chat-and-tools-model
-      requests_per_minute: null
+      policy_handles: null
       run_release_tests: true
-      tkgi_access_enabled: false
-      tokens_per_minute: null
   .errands.ollama_models:
     value:
     - azs:
@@ -4424,7 +4316,7 @@ product-properties:
       model_name: $OllamaEmbedModel
       model_url: $EmbedModelUrl
       ollama_context_length: 2048
-      ollama_flash_attention: false
+      ollama_flash_attention: true
       ollama_keep_alive: "-1"
       ollama_kv_cache_type: f16
       ollama_load_timeout: 5m
@@ -4445,7 +4337,7 @@ product-properties:
       ollama_context_length: 131072
       ollama_flash_attention: true
       ollama_keep_alive: "-1"
-      ollama_kv_cache_type: q4_0
+      ollama_kv_cache_type: f16
       ollama_load_timeout: 5m
       ollama_num_parallel: 1
       vm_type: cpu-2xlarge
@@ -4485,7 +4377,7 @@ network-properties:
     $GenAIyaml = "genai-config.yaml"
     $GenAIPayload > $GenAIyaml
 
-    My-Logger "Applying Tanzu GenAI configuration..."
+    My-Logger "Applying AI Services (Tanzu GenAI) configuration..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$GenAIyaml")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4494,125 +4386,6 @@ network-properties:
         exit
     }
 
-    My-Logger "Installing Tanzu GenAI (can take up to 40 minutes)..."
-    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$GenAIProductName")
-    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
-    My-Logger "${OMCLI} $installArgs" -LogOnly
-    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    My-Logger "Tanzu GenAI successfully installed"
-}
-
-if($setupHealthwatch -eq 1) {
-    # Verify if Healthwatch is already installed
-    $productToCheck = "p-healthwatch2"
-    $deployedResult = Check-productDeployed -productName $productToCheck
-    if ($deployedResult){
-        My-Logger "[Error] Healthwatch tile is already installed" -level Error -color Red
-        exit
-    }
-    
-    # Verify if Healthwatch Exporter is already installed
-    $productToCheck = "p-healthwatch2-pas-exporter"
-    $deployedResult = Check-productDeployed -productName $productToCheck
-    if ($deployedResult){
-        My-Logger "[Error] Healthwatch Exporter tile is already installed" -level Error -color Red
-        exit
-    }
-
-    # Get product name and version
-    $HealthwatchProductName = & "$OMCLI" product-metadata --product-path $HealthwatchTile --product-name
-    $HealthwatchVersion = & "$OMCLI" product-metadata --product-path $HealthwatchTile --product-version
-    $HealthwatchExporterProductName = & "$OMCLI" product-metadata --product-path $HealthwatchExporterTile --product-name
-    $HealthwatchExporterVersion = & "$OMCLI" product-metadata --product-path $HealthwatchExporterTile --product-version
-
-    # Upload Healthwatch tile
-    My-Logger "Uploading Healthwatch tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$HealthwatchTile")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    # Upload Healthwatch Exporter tile
-    My-Logger "Uploading Healthwatch Exporter tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$HealthwatchExporterTile")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    # Stage Healthwatch tile
-    My-Logger "Adding Healthwatch tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HealthwatchProductName", "--product-version", "$HealthwatchVersion")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    # Stage Healthwatch Exporter tile
-    My-Logger "Adding Healthwatch Exporter tile to Tanzu Operations Manager..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HealthwatchExporterProductName", "--product-version", "$HealthwatchExporterVersion")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    # No config needed for Healthwatch
-    
-    # Create Healthwatch Exporter config yaml
-    $HealthwatchExporterPayload = @"
----
-product-name: p-healthwatch2-pas-exporter
-product-properties:
-  .bosh-health-exporter.health_check_az:
-    value: $BOSHAZAssignment
-network-properties:
-  network:
-    name: $BOSHNetworkAssignment
-  other_availability_zones:
-  - name: $BOSHAZAssignment
-  service_network:
-    name: $BOSHNetworkAssignment
-  singleton_availability_zone:
-    name: $BOSHAZAssignment
-"@
-
-    $HealthwatchExporteryaml = "HealthwatchExporter-config.yaml"
-    $HealthwatchExporterPayload > $HealthwatchExporteryaml
-
-    My-Logger "Applying Healthwatch configuration..."
-    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$HealthwatchExporteryaml")
-    My-Logger "${OMCLI} $configArgs" -LogOnly
-    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    My-Logger "Installing Healthwatch and Healthwatch Exporter (can take up to 35 minutes)..."
-    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$HealthwatchProductName", "--product-name", "$HealthwatchExporterProductName")
-    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
-    My-Logger "${OMCLI} $installArgs" -LogOnly
-    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    My-Logger "Healthwatch and Healthwatch Exporter successfully installed"
 }
 
 if($setupHub -eq 1) {
@@ -4630,7 +4403,7 @@ if($setupHub -eq 1) {
     $HubVersion = & "$OMCLI" product-metadata --product-path $HubTile --product-version
 
     # Upload tile
-    My-Logger "Uploading Tanzu Hub tile to Tanzu Operations Manager (can take up to 15 minutes)..."
+    My-Logger "Uploading Tanzu Hub tile to Foundation Core (Tanzu Operations Manager) (can take up to 10 minutes)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$HubTile")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4640,7 +4413,7 @@ if($setupHub -eq 1) {
     }
 
     # Stage tile
-    My-Logger "Adding Tanzu Hub tile to Tanzu Operations Manager..."
+    My-Logger "Adding Tanzu Hub tile to Foundation Core (Tanzu Operations Manager)..."
     $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$HubProductName", "--product-version", "$HubVersion")
     My-Logger "${OMCLI} $configArgs" -LogOnly
     & $OMCLI $configArgs 2>&1 >> $verboseLogFile
@@ -4679,9 +4452,6 @@ product-properties:
   .properties.idp:
     selected_option: idp_internal
     value: idp_internal
-  .properties.tia:
-    selected_option: none
-    value: none
   .properties.trivy_allow_insecure_connections:
     value: true
 network-properties:
@@ -4705,22 +4475,37 @@ network-properties:
         exit
     }
 
-    My-Logger "Installing Tanzu Hub (can take up to 75 minutes)..."
-    $installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes", "--product-name", "$HubProductName")
-    if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
-    My-Logger "${OMCLI} $installArgs" -LogOnly
-    & $OMCLI $installArgs 2>&1 >> $verboseLogFile
-    if ($LASTEXITCODE -ne 0) {
-        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
-        exit
-    }
-
-    My-Logger "Tanzu Hub successfully installed" 
 }
+
+# Install all configured tiles
+$tiles = [ordered]@{
+  'Elastic Application Runtime'   = $setuptpcf
+  'Postgres'                      = $setupPostgres
+  'AI Services'                   = $setupgenai
+  'Hub'                           = $setupHub
+}
+
+$toInstall = $tiles.GetEnumerator() |
+  Where-Object { $_.Value -eq 1 } |
+  ForEach-Object { $_.Key }
+
+$tilesToInstall = if ($toInstall) { $toInstall -join ', ' } else { 'none' }
+My-Logger "Installing $tilesToInstall ..."
+
+$installArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "apply-changes")
+if ($ignoreWarnings) {$installArgs += "--ignore-warnings"}
+My-Logger "${OMCLI} $installArgs" -LogOnly
+& $OMCLI $installArgs 2>&1 >> $verboseLogFile
+if ($LASTEXITCODE -ne 0) {
+    My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+    exit
+}
+My-Logger "$tilesToInstall successfully installed"
 
 $EndTime = Get-Date
 $duration = [math]::Round((New-TimeSpan -Start $StartTime -End $EndTime).TotalMinutes,2)
 
+My-Logger " "
 My-Logger "======================================================"
 My-Logger "                Installation Complete!                "
 My-Logger "======================================================"
@@ -4749,7 +4534,7 @@ if ($setupTPCF){
     My-Logger "Follow the next steps at the link below where you can learn how to push your first app! Or, alternatively..."
     My-Logger " - https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer"
     My-Logger " "
-    My-Logger "Log into Tanzu Operations Manager"
+    My-Logger "Log into Foundation Core (Tanzu Operations Manager)"
     My-Logger "- Open a browser to https://$OpsManagerFQDN"
     My-Logger "- Username: $OpsManagerAdminUsername"
     My-Logger "- Password: $OpsManagerAdminPassword"
@@ -4767,7 +4552,9 @@ if ($setupTPCF){
     If ($InstallHub){
         My-Logger " "
         My-Logger "Tanzu Hub"
-        My-Logger "- See docs on how to configure ingress to Tanzu Hub https://$HubFQDN here https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-2/tnz-hub/install-install.html#access-tanzu-hub"
+        My-Logger "- Configure ingress to Tanzu Hub https://$HubFQDN following https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-3/tnz-hub/install-install.html#access-tanzu-hub"
+        My-Logger "- Log into Tanzu Hub https://$HubFQDN following https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-3/tnz-hub/install-install.html#first-tanzu-hub-login"
+        My-Logger "- Add a license key into Tanzu Hub following https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-hub/10-3/tnz-hub/foundations-manage-license-keys.html"
     }
 
     If ($InstallMinio){
