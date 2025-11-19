@@ -28,10 +28,10 @@ param(
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.0.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.0-build.12.pivotal"           #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform 
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.0.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.1.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.1-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.1.pivotal"               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform 
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.1.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -57,11 +57,11 @@ $OpsManagerFQDN = "FILL-ME-IN"
 $BOSHNetworkReservedRange = "FILL-ME-IN"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox eg 10.0.70.0-10.0.70.2,10.0.70.10
 $TPCFGoRouter = "FILL-ME-IN"              #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain = "FILL-ME-IN"                #Tanzu Platform system and apps subdomains will be added to this. Resolves to the TPCF GoRouter IP
-$TPCFLicenseKey = ""                      #License key required for 10.2 and later
+$TPCFLicenseKey = "FILL-ME-IN"            #License key required for 10.2 and later
 
 ### Install Tanzu Hub (global control plane & observability)?
 $InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.3.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.3.1.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN = "FILL-ME-IN"
 
 ### end of required inputs
@@ -83,9 +83,9 @@ $BOSHvCenterPassword = $VIPassword
 $BOSHvCenterDatacenter = $VMDatacenter
 $BOSHvCenterPersistentDatastores = $VMDatastore
 $BOSHvCenterEpemeralDatastores = $VMDatastore
-$BOSHvCenterVMFolder = "tpcf_vms"
-$BOSHvCenterTemplateFolder = "tpcf_templates"
-$BOSHvCenterDiskFolder = "tpcf_disk"
+$BOSHvCenterVMFolder = "tanzu_vms"
+$BOSHvCenterTemplateFolder = "tanzu_templates"
+$BOSHvCenterDiskFolder = "tanzu_disk"
 
 # AZ Definitions
 $BOSHAZ = @{
