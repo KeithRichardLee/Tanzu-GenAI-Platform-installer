@@ -14,10 +14,10 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
 
 ## Prerequisites
 **VMware vSphere**
-  - ESXi host/cluster (ESXi v7.x / v8.x / v9.x) with the following spare capacity...
-    - Compute: ~51 vCPU, although only uses approx 5 GHz
-    - Memory: ~85 GB
-    - Storage: ~380 GB
+  - ESXi host/cluster (ESXi v8.x / v9.x) with the following spare capacity...
+    - Compute: ~50 vCPU, although only uses approx 5 GHz
+    - Memory: ~105 GB
+    - Storage: ~350 GB
   - User / service account with at least the [following privileges](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-operations-manager/3-2/tanzu-ops-manager/vsphere-vsphere-service-account.html)
 
 **Networking**
@@ -62,10 +62,10 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, Postgres tile, GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.1.3.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.2.3-build.2.pivotal"
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.1.1-build.1.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.2.5.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.1.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.1-build.2.pivotal"
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.1.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.1.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
@@ -97,15 +97,15 @@ $OpsManagerFQDN           = "opsman.tanzu.lab"
 $BOSHNetworkReservedRange = "10.0.70.0-10.0.70.2,10.0.70.10,10.0.70.30-10.0.70.254"  #add IPs, either individual and/or ranges you _don't_ want BOSH to use in the subnet eg Ops Man, gateway, DNS, NTP, jumpbox
 $TPCFGoRouter             = "10.0.70.20"                                             #IP which the Tanzu Platform system and apps domain resolves to. Choose an IP towards the end of available IPs
 $TPCFDomain               = "tp.tanzu.lab"                                           #Tanzu Platform system and apps subdomains will be added to this. Resolves to the GoRouter IP
-$TPCFLicenseKey           = ""                                                       #License key required for 10.2 and later
+$TPCFLicenseKey           = "xxxxx-xxxxx-xxxxx-xxxxx-xxxxx"                          #License key required for 10.2 and later
 ```
 
 Update Tanzu Hub fields 
-- Note; installing Tanzu Hub (global control plane with observability) is optional. Installing Tanzu Hub requires an additional 13 IP addresses, 10 GHz CPU, 100 GB mem, and 400 GB storage.
+- Note; installing Tanzu Hub (global control plane with observability) is optional. Installing Tanzu Hub requires an additional 12 IP addresses, 10 GHz CPU, 96 GB mem, and 400 GB storage.
 ```bash
 ### Install Tanzu Hub (global control plane and observability)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.1.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -213,22 +213,17 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```bash
     sdk use maven 3.9.10
     ```
-- Clone git repos
+- Doenload / Clone git repos
   ```bash
-  git clone https://github.com/cpage-pivotal/cf-mcp-client
-  git clone https://github.com/kirtiapte/bitcoin-mcp-server
+  gh release download v2.1.0 --repo cpage-pivotal/cf-mcp-client -D cf-mcp-client
+  gh clone kirtiapte/bitcoin-mcp-server
   ```
 
 ## Deploy chat app
 
-### Build the app
-```bash
-cd cf-mcp-client
-mvn clean package
-```
-
 ### Push the app to the platform
 ```bash
+cd cf-mcp-client
 cf push
 ```
 
@@ -478,16 +473,16 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.0.ova
-- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.0-build.12.pivotal
-- **Postgres:** postgres-10.1.1-build.1.pivotal
-- **AI Services:** genai-10.3.0.pivotal
-- **Tanzu Hub:** tanzu-hub-10.3.0.pivotal
+- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.1.ova
+- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.1-build.2.pivotal
+- **Postgres:** postgres-10.2.1.pivotal
+- **AI Services:** genai-10.3.1.pivotal
+- **Tanzu Hub:** tanzu-hub-10.3.1.pivotal
 - **OM CLI:** 7.16
-- **Powershell:** 7.5.1
+- **Powershell:** 7.5.3
 - **PowerCLI:** 13.3.0
-- **CF CLI:** 10.2
-- **cf-mcp-client:** 2.0
+- **CF CLI:** 10.3
+- **cf-mcp-client:** 2.1
 - **vSphere:** 8U3 & 9.0
 
 ## Credits
