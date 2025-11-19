@@ -213,7 +213,7 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```bash
     sdk use maven 3.9.10
     ```
-- Doenload / Clone git repos
+- Download / Clone git repos
   ```bash
   gh release download v2.1.0 --repo cpage-pivotal/cf-mcp-client -D cf-mcp-client
   gh clone kirtiapte/bitcoin-mcp-server
