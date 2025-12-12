@@ -2,6 +2,15 @@
 
 TL;DR - A powershell script that automates the install of VMware Tanzu Platform, a private PaaS which includes AI services, on VMware vSphere with minimal resource requirements.
 
+---
+
+> [!WARNING]
+> **This repository is an unofficial project provided "as is."**
+>
+> It is not supported by any organization, and no warranty or guarantee of functionality is provided. Use at your own discretion.
+
+---
+
 The installer takes minimum set of parameters, validates them, and then performs the install of the platform which includes Foundation Core (Tanzu Operations Manager), BOSH Director, Elastic Application Runtime, Postgres, and AI Services with models that have embedding, chat, and tools capabilities. Optionally, Tanzu Hub (global control plane with observability) can be installed.
 
 The script, when ran after an install with "stop" or "start", can stop or start the whole Tanzu Platform.
@@ -11,6 +20,8 @@ Note:
 - There are some limitations with small footprint which can be found [here](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/elastic-application-runtime/10-3/eart/toc-tas-install-index.html#limits). 
 
 For a much more comprehensive automated install of Tanzu Platform, which uses [Concourse](https://concourse-ci.org/), check out the [Platform Automation Toolkit for Tanzu](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/platform-automation-toolkit-for-tanzu/5-3/vmware-automation-toolkit/docs-index.html)
+
+---
 
 ## Prerequisites
 **VMware vSphere**
@@ -55,7 +66,7 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
   - [Tanzu Hub](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub) (optional)
 - This repo cloned eg `git clone https://github.com/KeithRichardLee/Tanzu-GenAI-Platform-installer.git`
 
-
+---
 ## Fill out required fields in the script
 Update each instance of "FILL-ME-IN" in the script. See below for a worked example...
 
