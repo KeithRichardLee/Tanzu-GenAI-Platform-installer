@@ -73,10 +73,10 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, Postgres tile, GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.1.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.1-build.2.pivotal"
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.1.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.1.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.2.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.2-build.3.pivotal"
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.2.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.2.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
@@ -116,7 +116,7 @@ Update Tanzu Hub fields
 ```bash
 ### Install Tanzu Hub (global control plane and observability)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.1.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.3.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -484,11 +484,11 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.1.ova
-- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.1-build.2.pivotal
-- **Postgres:** postgres-10.2.1.pivotal
-- **AI Services:** genai-10.3.1.pivotal
-- **Tanzu Hub:** tanzu-hub-10.3.1.pivotal
+- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.2.ova
+- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.2-build.3.pivotal
+- **Postgres:** postgres-10.2.2.pivotal
+- **AI Services:** genai-10.3.2.pivotal
+- **Tanzu Hub:** tanzu-hub-10.3.3.pivotal
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.3
 - **PowerCLI:** 13.3.0
