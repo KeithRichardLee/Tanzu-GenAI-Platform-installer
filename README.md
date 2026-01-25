@@ -74,9 +74,9 @@ Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platf
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
 $OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.2.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.2-build.3.pivotal"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.4-build.2.pivotal"
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.2.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.2.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.3.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
@@ -116,7 +116,7 @@ Update Tanzu Hub fields
 ```bash
 ### Install Tanzu Hub (global control plane and observability)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.3.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.4.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -140,7 +140,7 @@ $KeyPath          = "/Users/Tanzu/certs/privkey.pem"
 AI models
 ```bash
 # AI Services config
-$OllamaEmbedModel = "nomic-embed-text"
+$OllamaEmbedModel = "nomic-embed-text-v2-moe"
 $OllamaChatToolsModel = "gpt-oss:20b"
 ```
 
@@ -226,7 +226,7 @@ Below we will deploy a Spring chatbot application which can consume AI services 
     ```
 - Download / Clone git repos
   ```bash
-  gh release download v2.1.0 --repo cpage-pivotal/cf-mcp-client -D cf-mcp-client
+  gh release download v2.7.0 --repo cpage-pivotal/cf-mcp-client -D cf-mcp-client
   gh clone kirtiapte/bitcoin-mcp-server
   ```
 
@@ -339,7 +339,7 @@ cf apps
 
 4. Create a user-provided service that provides the URL for the bitcoin MCP server
 ```bash
-cf cups bitcoin-mcp-server -p '{"mcpServiceURL":"http://bitcoin-mcp-server.apps.tp.tanzu.lab"}'
+cf cups bitcoin-mcp-server -p '{"uri":"http://bitcoin-mcp-server.apps.tp.tanzu.lab"}' -t "mcpSseURL"
 ```
 
 5. Bind the MCP service to your chatbot app
@@ -485,15 +485,15 @@ Below are the pre-checks the script performs...
 ## Validation
 The script was validated against the following versions...
 - **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.2.ova
-- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.2-build.3.pivotal
+- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.4-build.2.pivotal
 - **Postgres:** postgres-10.2.2.pivotal
-- **AI Services:** genai-10.3.2.pivotal
-- **Tanzu Hub:** tanzu-hub-10.3.3.pivotal
+- **AI Services:** genai-10.3.3.pivotal
+- **Tanzu Hub:** tanzu-hub-10.3.4.pivotal
 - **OM CLI:** 7.16
 - **Powershell:** 7.5.3
 - **PowerCLI:** 13.3.0
 - **CF CLI:** 10.3
-- **cf-mcp-client:** 2.1
+- **cf-mcp-client:** 2.7
 - **vSphere:** 8U3 & 9.0
 
 ## Credits
