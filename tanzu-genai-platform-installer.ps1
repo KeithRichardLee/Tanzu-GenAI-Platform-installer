@@ -28,10 +28,10 @@ param(
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.2.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.4-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.4.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.5-build.4.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.2.pivotal"               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform 
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.3.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.4.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -61,7 +61,7 @@ $TPCFLicenseKey = "FILL-ME-IN"            #License key required for 10.2 and lat
 
 ### Install Tanzu Hub (global control plane & observability)?
 $InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.3.4.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.3.5.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN = "FILL-ME-IN"
 
 ### end of required inputs
@@ -82,7 +82,7 @@ $BOSHvCenterUsername = $VIUsername
 $BOSHvCenterPassword = $VIPassword
 $BOSHvCenterDatacenter = $VMDatacenter
 $BOSHvCenterPersistentDatastores = $VMDatastore
-$BOSHvCenterEpemeralDatastores = $VMDatastore
+$BOSHvCenterEphemeralDatastores = $VMDatastore
 $BOSHvCenterVMFolder = "tanzu_vms"
 $BOSHvCenterTemplateFolder = "tanzu_templates"
 $BOSHvCenterDiskFolder = "tanzu_disk"
@@ -134,7 +134,7 @@ $OllamaEmbedModel = "nomic-embed-text-v2-moe"
 $OllamaChatToolsModel = "gpt-oss:20b"
 
 # Internet Restricted Env?
-# Be default, this script pulls the above models from Ollama (registry.ollama.ai). For internet restricted environments, you can download the models 
+# By default, this script pulls the above models from Ollama (registry.ollama.ai). For internet restricted environments, you can download the models 
 # separately using the links below and specify their location in the variables in the section below. This script will then create a MinIO object store, 
 # upload the models to it, so the installer can then pull the models from it rather than from the internet.
 #
@@ -161,6 +161,57 @@ $MCCLI                  = "/usr/local/bin/mc"                                   
 $UserProvidedHubCert = $false
 $HubCertPath = "/Users/Tanzu/certs/Hub/fullchain.pem"
 $HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
+
+##############################
+
+# Optional extra services
+
+# Install MySQL?
+$InstallMySQL   = $false
+$MySQLTile      = "/Users/Tanzu/Downloads/pivotal-mysql-10.1.0.pivotal"                                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20MySQL%20on%20Tanzu%20Platform
+$scpServer      = "FILL-ME-IN"                                                                                     # hostname or IP
+$scpPort        = "FILL-ME-IN"                                                                                     # eg "22"
+$scpUser        = "FILL-ME-IN"                                                                                     # eg "mysql-backup-user"
+$scpKeyPath     = "FILL-ME-IN"                                                                                     # path to users private key
+$scpDestination = "FILL-ME-IN"                                                                                     # path to backup location eg "/home/mysql-backup-user/mysql-backup/"
+
+# Install API Gateway (Spring Cloud Gateway)?
+$InstallAPIGW   = $false
+$APIGWTile      = "/Users/Tanzu/Downloads/p_spring-cloud-gateway-service-2.4.2.pivotal"                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=API%20Gateway%20for%20VMware%20Tanzu%20Platform
+
+# Install Service Publisher?
+$InstallServicePublisher = $false
+$ServicePublisherTile    = "/Users/Tanzu/Downloads/service-publisher-10.3.5.pivotal"                               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Service%20Publisher%20for%20VMware%20Tanzu%20Platform 
+$svcPubProviderName      = "FILL-ME-IN"                                                                            #Default provider name for published service eg "Tanzu Labs"
+
+# Install Application Services (Spring Cloud Services)?
+$InstallAppServices     = $false
+$AppServicesTile        = "/Users/Tanzu/Downloads/p_spring-cloud-services-3.3.15.pivotal"                          #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Application%20Services%20for%20VMware%20Tanzu%20Platform 
+
+# Install CredHub?
+$InstallCredHub         = $false
+$CredHubTile            = "/Users/Tanzu/Downloads/credhub-service-broker-1.6.8.pivotal"                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=CredHub%20Secrets%20Management%20for%20VMware%20Tanzu%20Platform 
+
+# Install Data Flow (Spring Cloud Data Flow)?
+$InstallDataFlow        = $false
+$DataFlowTile           = "/Users/Tanzu/Downloads/dataflow-2.0.2.pivotal"                                          #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Data%20Flow%20on%20Tanzu%20Platform 
+
+# Install Single Sign-On?
+$InstallSSO             = $false
+$SSOTile                = "/Users/Tanzu/Downloads/Pivotal_Single_Sign-On_Service_1.16.17.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Single%20Sign-On%20for%20VMware%20Tanzu%20Platform 
+
+# Install GemFire (CloudCache)?
+$InstallGemFire         = $false
+$GemFireTile            = "/Users/Tanzu/Downloads/p-cloudcache-2.2.1.pivotal"                                      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20GemFire%20on%20Tanzu%20Platform
+
+# Install RabbitMQ?
+$InstallRabbitMQ        = $false
+$RabbitMQTile           = "/Users/Tanzu/Downloads/p-rabbitmq-10.1.2.pivotal"                                       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20RabbitMQ%20on%20Tanzu%20Platform 
+
+# Install Valkey (Redis)?
+$InstallValkey          = $false
+$ValkeyTile             = "/Users/Tanzu/Downloads/p-valkey-10.2.1.pivotal"                                         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Valkey%20on%20Tanzu%20Platform 
+
 
 ##############################
 
@@ -195,6 +246,66 @@ $ProductRequirements = @{
         CPUGHz = 1
         MemoryGB = 1
         StorageGB = 40
+    }
+    "MySQL" = @{
+        IP = 1
+        CPUGHz = 1
+        MemoryGB = 1
+        StorageGB = 13
+    }
+    "APIGW" = @{
+        IP = 1
+        CPUGHz = 1
+        MemoryGB = 8
+        StorageGB = 23
+    }
+    "ServicePublisher" = @{
+        IP = 0
+        CPUGHz = 0
+        MemoryGB = 0
+        StorageGB = 0
+    }
+    "AppServices" = @{
+        IP = 1
+        CPUGHz = 1
+        MemoryGB = 8
+        StorageGB = 21
+    }
+    "CredHub" = @{
+        IP = 0
+        CPUGHz = 0
+        MemoryGB = 0
+        StorageGB = 0
+    }
+    "DataFlow" = @{
+        IP = 0
+        CPUGHz = 0
+        MemoryGB = 0
+        StorageGB = 0
+    }
+    "SSO" = @{
+        IP = 0
+        CPUGHz = 0
+        MemoryGB = 0
+        StorageGB = 0
+    }
+    "GemFire" = @{
+        IP = 1
+        CPUGHz = 1
+        MemoryGB = 1
+        StorageGB = 14
+    }
+    "RabbitMQ" = @{
+        IP = 1
+        CPUGHz = 1
+        MemoryGB = 1
+        StorageGB = 14
+    }
+    "Valkey" = @{
+        IP = 2
+        CPUGHz = 1
+        MemoryGB = 1
+        StorageGB = 36
     }
 }
 
@@ -301,17 +412,27 @@ $requiredDatacenterPrivileges = @(
 $verboseLogFile = "tanzu-genai-platform-installer.log"
 
 # Installer Overrides
-$confirmDeployment = 1
-$preCheck = 1
-$deployOpsManager = 1
-$setupOpsManager = 1
-$setupBOSHDirector = 1
-$setupTPCF = 1
-$setupMinio = $InstallMinIO
-$setupPostgres = $InstallTanzuAI
-$setupGenAI = $InstallTanzuAI
-$setupHub = $InstallHub
-$ignoreWarnings = $false
+$confirmDeployment     = 1
+$preCheck              = 1
+$deployOpsManager      = 1
+$setupOpsManager       = 1
+$setupBOSHDirector     = 1
+$setupTPCF             = 1
+$setupMinio            = $InstallMinIO
+$setupPostgres         = $InstallTanzuAI
+$setupGenAI            = $InstallTanzuAI
+$setupHub              = $InstallHub
+$setupMySQL            = $InstallMySQL
+$setupAPIGW            = $InstallAPIGW
+$setupServicePublisher = $InstallServicePublisher
+$setupAppServices      = $InstallAppServices
+$setupCredHub          = $InstallCredHub
+$setupDataFlow         = $InstallDataFlow
+$setupSSO              = $InstallSSO
+$setupGemFire          = $InstallGemFire
+$setupRabbitMQ         = $InstallRabbitMQ
+$setupValkey           = $InstallValkey 
+$ignoreWarnings        = $false
 
 ############################################################################################
 #### DO NOT EDIT BEYOND HERE ####
@@ -895,7 +1016,7 @@ function Test-NetworkCapacity {
             $reservedCount += 1
         }
         else {
-            My-Logger "Invalid IP format: $item" -OnlyLog
+            My-Logger "Invalid IP format: $item" -LogOnly
         }
     }
     
@@ -1267,11 +1388,21 @@ function Calculate-TotalRequirements {
 
     # Define which products to install
     $ProductsToInstall = @{
-        "OpsMan" = $true
-        "TPCF" = $true
-        "TanzuAI" = $InstallTanzuAI
-        "Hub" = $InstallHub
-        "Minio" = $InstallMinIO
+        "OpsMan"            = $true
+        "TPCF"              = $true
+        "TanzuAI"           = $InstallTanzuAI
+        "Hub"               = $InstallHub
+        "Minio"             = $InstallMinIO
+        "MySQL"             = $InstallMySQL
+        "APIGW"             = $InstallAPIGW
+        "ServicePublisher"  = $InstallServicePublisher
+        "AppServices"       = $InstallAppServices
+        "CredHub"           = $InstallCredHub
+        "DataFlow"          = $InstallDataFlow
+        "SSO"               = $InstallSSO
+        "GemFire"           = $InstallGemFire
+        "RabbitMQ"          = $InstallRabbitMQ
+        "Valkey"            = $InstallValkey
     }
 
     # Initialize totals
@@ -1374,7 +1505,7 @@ function Get-ClusterFreeResources {
         return $result
         
     } catch {
-        My-Logger "Error retrieving cluster information: $($_.Exception.Message)" -OnlyLog
+        My-Logger "Error retrieving cluster information: $($_.Exception.Message)" -LogOnly
     }
 }
 
@@ -1412,7 +1543,7 @@ function Run-Test {
             Message = $_.Exception.Message
         }
         My-Logger "Test $TestName failed with exception: $($_.Exception.Message)" -level Error -LogOnly
-        }
+    }
 }
 
 function Show-TestResults {
@@ -1538,7 +1669,7 @@ function Set-BoshEnvFromOpsMan {
         My-Logger "[Error] Failed to invoke '$OMCLI' or authenticate to Ops Manager. $($_.Exception.Message)" -level Error -LogOnly
         My-Logger "[Error] Failed to invoke '$OMCLI' or authenticate to Ops Manager. See log for details" -level Error -color Red
         Exit
-}
+    }
 
     # Fetch env script
     $envScriptLines = & $OMCLI @omArgs bosh-env 2>&1
@@ -1576,7 +1707,7 @@ function Set-BoshEnvFromOpsMan {
     $psScript = [string]$psScript
     Invoke-Expression -Command $psScript
 
-    # Report what was set)
+    # Report what was set
     My-Logger "Set environment variables for BOSH CLI:" -LogOnly
     $names = @(
         # BOSH
@@ -1774,7 +1905,7 @@ function Install-Minio {
         exit
     }
     if (-not (Test-Path -LiteralPath $varsFilePath)) { 
-        My Logger "MinIO vars file not found: $varsFilePath" -level Error -LogOnly
+        My-Logger "MinIO vars file not found: $varsFilePath" -level Error -LogOnly
         My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
         exit
     }
@@ -1815,16 +1946,28 @@ function Create-MinioBucket {
     $aliasArgs = @('alias', 'set', $AliasName, $ServerUrl, $AccessKey, $SecretKey, '--insecure')
     My-Logger "${MCCLI} $aliasArgs" -LogOnly
     & $MCCLI @aliasArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
     
     My-Logger "Create MinIO bucket called $BucketName" -LogOnly
     $mbArgs = @('mb', "$AliasName/$BucketName")
     My-Logger "${MCCLI} $mbArgs" -LogOnly
     & $MCCLI @mbArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
     
     My-Logger "Set anonymous read access for bucket $BucketName" -LogOnly
     $accessArgs = @('anonymous', 'set', 'download', "$AliasName/$BucketName")
     My-Logger "${MCCLI} $accessArgs" -LogOnly
     & $MCCLI @accessArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }    
 
 }
 
@@ -1840,6 +1983,10 @@ function Upload-Model {
     My-Logger "${MCCLI} $cpArgs" -LogOnly
     My-Logger "Uploading $(Split-Path $ModelPath -Leaf) to MinIO bucket"
     & $MCCLI @cpArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
     My-Logger "Upload complete"
 
 }
@@ -2276,7 +2423,7 @@ function Find-BoshDirectorVm {
 function Unlock-OpsManager {
     [CmdletBinding()]
     param(
-        # Base URL of Ops Manager, e.g. https://ops-man.tasnzu.lab
+        # Base URL of Ops Manager, e.g. https://ops-man.tanzu.lab
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$BaseUrl,
@@ -2487,7 +2634,8 @@ function Stop-TanzuPlatform {
     $cckResults = foreach ($d in $deployments) {
         My-Logger "  Checking deployment $d..."
         $boshArgs = @('--deployment', $d, 'cloud-check', '--report') 
-        $output = & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+        $output = & $BOSHCLI @boshArgs 2>&1 
+        $output >> $verboseLogFile
         $code   = $LASTEXITCODE
         [pscustomobject]@{
             Deployment = $d
@@ -2515,7 +2663,7 @@ function Stop-TanzuPlatform {
         exit
     }
 
-    # Check BOSH resurection plugin status and disable it
+    # Check BOSH resurrection plugin status and disable it
     $boshArgs = @('curl', '--', '/resurrection')
     My-Logger "${BOSHCLI} $boshArgs" -LogOnly
     $statusJson = & $BOSHCLI @boshArgs
@@ -2540,7 +2688,7 @@ function Stop-TanzuPlatform {
     # Note: For non-SRT foundations, one would need to scale consul_server and mysql down to 1 before proceeding with stopping the deployments
 
     ### Stop options ###
-    # 1) Fully graceful             -> "bosh stop hard" which runs pre/drain scripts, stops the processes, shutdowns the VMs, deletes the VMs but keeps the presistent disks
+    # 1) Fully graceful             -> "bosh stop hard" which runs pre/drain scripts, stops the processes, shutdowns the VMs, deletes the VMs but keeps the persistent disks
     # 2) Graceful with manual steps -> "bosh stop" which runs pre/drain scripts, stops the processes, but keeps the VM running. Need to manually stop the VMs
     # 3) "Dirty"                    -> "stop vms", no pre/drain scripts
 
@@ -2549,13 +2697,13 @@ function Stop-TanzuPlatform {
     #My-Logger "Stopping deployments. See the following log for detailed status $verboseLogFile"
     #Stop-Deployments -DeploymentList $deployments -Hard
 
-    # 2) Stop deployments: Graceful with manual vm stop (bosh stop and then shutdown vms seperatly)
+    # 2) Stop deployments: Graceful with manual vm stop (bosh stop and then shutdown vms separately)
     # Note: Do not use until issue with hub coming back up after "bosh stop/start" is root caused
     #My-Logger "Stopping deployments. See the following log for detailed status $verboseLogFile"
     #Stop-Deployments -DeploymentList $deployments
     # then use option 3 to stop VMs
 
-    # 3) Stop deploymnets: Dirty (stop VMs)
+    # 3) Stop deployments: Dirty (stop VMs)
 
     $boshArgs = @('vms', '--column=vm_cid', '--json')
     My-Logger "${BOSHCLI} $boshArgs" -LogOnly
@@ -2578,7 +2726,7 @@ function Stop-TanzuPlatform {
         }
     }
 
-    # Verify all VMs powered off sucessfully
+    # Verify all VMs powered off successfully
     $results = Verify-VMPowerState -vmCids $vmCids -DesiredState Off
 
     # Determine which didn't meet the desired state (includes not found + timeouts + wrong state)
@@ -2599,9 +2747,8 @@ function Stop-TanzuPlatform {
 
     # Find name of BOSH Director VM in vCenter
     $directorVm = @(Find-BoshDirectorVm)
-    My-Logger "Found BOSH Director VM"
     if ($directorVm.Count -eq 0) {
-        My-Logger "BOSH Director VM not found. Please check vCenter manually and shutodwn the BOSH Director VM, and then Ops Manager VM"
+        My-Logger "BOSH Director VM not found. Please check vCenter manually and shutdown the BOSH Director VM, and then Ops Manager VM"
         exit
     } elseif ($directorVm.Count -gt 1) {
         $names = $directorVm | Select-Object -ExpandProperty VMName
@@ -2609,10 +2756,11 @@ function Stop-TanzuPlatform {
         exit
     } else {
         $directorName = $directorVm[0].VMName
+        My-Logger "Found BOSH Director VM"
         My-Logger "BOSH Director VM is $directorName"
         Stop-GuestVm -VMName $directorName -WaitForPowerOff | Out-Null
         
-        My-Logger "Tanzu Ops Manger VM is $OpsManagerDisplayName"
+        My-Logger "Tanzu Ops Manager VM is $OpsManagerDisplayName"
         Stop-GuestVm -VMName $OpsManagerDisplayName -WaitForPowerOff | Out-Null
     }
 
@@ -2767,7 +2915,7 @@ function Start-TanzuPlatform {
         }
     }
 
-    # Verify all VMs powered on sucessfully
+    # Verify all VMs powered on successfully
     $results = Verify-VMPowerState -vmCids $vmCids -DesiredState On
 
     # Determine which didn't meet the desired state (includes not found + timeouts + wrong state)
@@ -2811,7 +2959,8 @@ function Start-TanzuPlatform {
     $cckResults = foreach ($d in $deployments) {
         My-Logger "  Checking deployment $d..."
         $boshArgs = @('--deployment', $d, 'cloud-check', '--report') 
-        $output = & $BOSHCLI @boshArgs 2>&1 >> $verboseLogFile
+        $output = & $BOSHCLI @boshArgs 2>&1 
+        $output >> $verboseLogFile
         $code   = $LASTEXITCODE
         [pscustomobject]@{
             Deployment = $d
@@ -2910,6 +3059,46 @@ if($confirmDeployment -eq 1) {
     if ($InstallHub) {
         Write-Host -NoNewline -ForegroundColor Green "Tanzu Hub tile path: "
         Write-Host -ForegroundColor White $HubTile
+    }
+    if ($InstallMySQL) {
+        Write-Host -NoNewline -ForegroundColor Green "MySQL tile path: "
+        Write-Host -ForegroundColor White $MySQLTile
+    }
+    if ($InstallAPIGW) {
+        Write-Host -NoNewline -ForegroundColor Green "API Gateway tile path: "
+        Write-Host -ForegroundColor White $APIGWTile
+    }
+    if ($InstallServicePublisher) {
+        Write-Host -NoNewline -ForegroundColor Green "Service Publisher tile path: "
+        Write-Host -ForegroundColor White $ServicePublisherTile
+    }
+    if ($InstallAppServices) {
+        Write-Host -NoNewline -ForegroundColor Green "Application Services tile path: "
+        Write-Host -ForegroundColor White $AppServicesTile
+    }
+    if ($InstallCredHub) {
+        Write-Host -NoNewline -ForegroundColor Green "CredHub tile path: "
+        Write-Host -ForegroundColor White $CredHubTile
+    }
+    if ($InstallDataFlow) {
+        Write-Host -NoNewline -ForegroundColor Green "Data Flow tile path: "
+        Write-Host -ForegroundColor White $DataFlowTile
+    }
+    if ($InstallSSO) {
+        Write-Host -NoNewline -ForegroundColor Green "Single Sign-on tile path: "
+        Write-Host -ForegroundColor White $SSOTile
+    }
+    if ($InstallGemFire) {
+        Write-Host -NoNewline -ForegroundColor Green "GemFire tile path: "
+        Write-Host -ForegroundColor White $GemFireTile
+    }
+    if ($InstallRabbitMQ) {
+        Write-Host -NoNewline -ForegroundColor Green "RabbitMQ tile path: "
+        Write-Host -ForegroundColor White $RabbitMQTile
+    }
+    if ($InstallValkey) {
+        Write-Host -NoNewline -ForegroundColor Green "Valkey tile path: "
+        Write-Host -ForegroundColor White $ValkeyTile
     }
     Write-Host -NoNewline -ForegroundColor Green "OM CLI path: "
     Write-Host -ForegroundColor White $OMCLI
@@ -3020,9 +3209,7 @@ if($confirmDeployment -eq 1) {
 
     Write-Host -ForegroundColor Magenta "`nWould you like to proceed with this deployment?`n"
     $answer = Read-Host -Prompt "Do you accept (Y or N)"
-    if($answer -ne "Y" -or $answer -ne "y") {
-        exit
-    }
+    if($answer -ne "Y") { exit }
 }
 
 if($preCheck -eq 1) {
@@ -3033,7 +3220,7 @@ if($preCheck -eq 1) {
     # Create an array to track the order of tests
     $TestOrder = @()
 
-    #Calculate total resource requirments to be used in several tests 
+    #Calculate total resource requirements to be used in several tests 
     $Requirements = Calculate-TotalRequirements -ProductRequirements $ProductRequirements
 
     # Verify if OM CLI exists
@@ -3091,6 +3278,86 @@ if($preCheck -eq 1) {
             if (Test-Path $HubTile) { return $true } else { return "Files: Unable to find $HubTile" }
         }
     }
+
+    # Verify if MySQL tile file exists
+    if ($InstallMySQL -eq $true) {
+        My-Logger "Validating if MySQL tile file exists at $MySQLTile" -LogOnly
+        Run-Test -TestName "Files: MySQL tile file exists" -TestCode {
+            if (Test-Path $MySQLTile) { return $true } else { return "Files: Unable to find $MySQLTile" }
+        }
+    }
+
+    # Verify if API Gateway tile file exists
+    if ($InstallAPIGW -eq $true) {
+        My-Logger "Validating if API Gateway tile file exists at $APIGWTile" -LogOnly
+        Run-Test -TestName "Files: API Gateway tile file exists" -TestCode {
+            if (Test-Path $APIGWTile) { return $true } else { return "Files: Unable to find $APIGWTile" }
+        }
+    } 
+
+    # Verify if Service Publisher tile file exists
+    if ($InstallServicePublisher -eq $true) {
+        My-Logger "Validating if Service Publisher tile file exists at $ServicePublisherTile" -LogOnly
+        Run-Test -TestName "Files: Service Publisher tile file exists" -TestCode {
+            if (Test-Path $ServicePublisherTile) { return $true } else { return "Files: Unable to find $ServicePublisherTile" }
+        }
+    }  
+
+    # Verify if Application Services tile file exists
+    if ($InstallAppServices -eq $true) {
+        My-Logger "Validating if Application Services tile file exists at $AppServicesTile" -LogOnly
+        Run-Test -TestName "Files: Application Services tile file exists" -TestCode {
+            if (Test-Path $AppServicesTile) { return $true } else { return "Files: Unable to find $AppServicesTile" }
+        }
+    } 
+
+    # Verify if CredHub tile file exists
+    if ($InstallCredHub -eq $true) {
+        My-Logger "Validating if CredHub tile file exists at $CredHubTile" -LogOnly
+        Run-Test -TestName "Files: CredHub tile file exists" -TestCode {
+            if (Test-Path $CredHubTile) { return $true } else { return "Files: Unable to find $CredHubTile" }
+        }
+    } 
+
+    # Verify if Data Flow tile file exists
+    if ($InstallDataFlow -eq $true) {
+        My-Logger "Validating if Data Flow tile file exists at $DataFlowTile" -LogOnly
+        Run-Test -TestName "Files: Data Flow tile file exists" -TestCode {
+            if (Test-Path $DataFlowTile) { return $true } else { return "Files: Unable to find $DataFlowTile" }
+        }
+    } 
+
+    # Verify if Single Sign-on tile file exists
+    if ($InstallSSO -eq $true) {
+        My-Logger "Validating if Single Sign-on tile file exists at $SSOTile" -LogOnly
+        Run-Test -TestName "Files: Single Sign-on tile file exists" -TestCode {
+            if (Test-Path $SSOTile) { return $true } else { return "Files: Unable to find $SSOTile" }
+        }
+    } 
+
+    # Verify if GemFire tile file exists
+    if ($InstallGemFire -eq $true) {
+        My-Logger "Validating if GemFire tile file exists at $GemFireTile" -LogOnly
+        Run-Test -TestName "Files: GemFire tile file exists" -TestCode {
+            if (Test-Path $GemFireTile) { return $true } else { return "Files: Unable to find $GemFireTile" }
+        }
+    } 
+
+    # Verify if RabbitMQ tile file exists
+    if ($InstallRabbitMQ -eq $true) {
+        My-Logger "Validating if RabbitMQ tile file exists at $RabbitMQTile" -LogOnly
+        Run-Test -TestName "Files: RabbitMQ tile file exists" -TestCode {
+            if (Test-Path $RabbitMQTile) { return $true } else { return "Files: Unable to find $RabbitMQTile" }
+        }
+    } 
+
+    # Verify if Valkey tile file exists
+    if ($InstallValkey -eq $true) {
+        My-Logger "Validating if Valkey tile file exists at $ValkeyTile" -LogOnly
+        Run-Test -TestName "Files: Valkey tile file exists" -TestCode {
+            if (Test-Path $ValkeyTile) { return $true } else { return "Files: Unable to find $ValkeyTile" }
+        }
+    } 
 
     if ($InstallMinIO -eq $true) {
         # Verify if MinIO BOSH Release folder exists
@@ -3390,7 +3657,7 @@ if($preCheck -eq 1) {
                 if ($ollamaResult.StatusCode -eq 200) {
                     return $true
                 } else {
-                    return "Network: Cannot reach ollama.ai. Status code: $($vcenterResult.StatusCode)"
+                    return "Network: Cannot reach ollama.ai. Status code: $($ollamaResult.StatusCode)"
                 }
             } catch {
                 return "Cannot reach ollama.ai. Error: $($_.Exception.Message)"
@@ -3666,19 +3933,19 @@ if($preCheck -eq 1) {
             }
         }
 
-        # Check if Tanzu Platform Cloud Foundary is already installed
-        My-Logger "Validating if Tanzu Platform Cloud Foundary is not already installed" -LogOnly
-        Run-Test -TestName "Platform: Tanzu Platform Cloud Foundary is not installed" -TestCode {
+        # Check if Tanzu Platform Cloud Foundry is already installed
+        My-Logger "Validating if Tanzu Platform Cloud Foundry is not already installed" -LogOnly
+        Run-Test -TestName "Platform: Tanzu Platform Cloud Foundry is not installed" -TestCode {
             try {
                 $productToCheck = "cf"
                 $deployedResult = Check-productDeployed -productName $productToCheck
                 if (!$deployedResult){
                     return $true
                 } else {
-                    return "Platform: Tanzu Platform Cloud Foundary is already installed"
+                    return "Platform: Tanzu Platform Cloud Foundry is already installed"
                 }
             } catch {
-                return "Unable to confirm if Tanzu Platform Cloud Foundary is already installed. Error: $($_.Exception.Message)"
+                return "Unable to confirm if Tanzu Platform Cloud Foundry is already installed. Error: $($_.Exception.Message)"
             }
         }
 
@@ -3737,13 +4004,13 @@ if($preCheck -eq 1) {
         }
     }
 
-    # Verify if VMware PowerCLI module is installed
-    My-Logger "Validating if VMware PowerCLI module is installed" -LogOnly
-    Run-Test -TestName "VMware PowerCLI module installed" -TestCode {
-        if (Get-Module -ListAvailable -Name VMware.PowerCLI) {
+    # Verify if PowerCLI module is installed
+    My-Logger "Validating if VMware PowerCLI or VCF PowerCLI module is installed" -LogOnly
+    Run-Test -TestName "PowerCLI module installed" -TestCode {
+        if ((Get-Module -ListAvailable -Name VMware.PowerCLI) -or (Get-Module -ListAvailable -Name VCF.PowerCLI)) {
             return $true
         } else {
-            return "VMware PowerCLI module not found"
+            return "VMware PowerCLI or VCF PowerCLI module not found"
         }
     }
 
@@ -3755,24 +4022,27 @@ if($preCheck -eq 1) {
 
     # Check if TP License Key is valid if TPCF 10.2 or later is being installed
     $TPCFFilename = Split-Path $TPCFTile -Leaf
-    if ($TPCFFilename -like "*10.2*") {
-        My-Logger "Validating if TP Licence Key is of valid format" -LogOnly
-        Run-Test -TestName "License Key is of valid format" -TestCode {
-            # Check if license key is specified (not null/empty)
-            if ([string]::IsNullOrWhiteSpace($TPCFLicenseKey)) {
-                My-Logger "License Key field is empty" -LogOnly -Level Error
-                return "License Key field is empty"
-            }
-            
-            # Validate license key format (xxxxx-xxxxx-xxxxx-xxxxx-xxxxx)
-            $licensePattern = "^[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$"
-            
-            if ($TPCFLicenseKey -match $licensePattern) {
-                My-Logger "License key format is valid" -LogOnly
-                return $true
-            } else {
-                My-Logger "License Key format is invalid. Expected format: xxxxx-xxxxx-xxxxx-xxxxx-xxxxx" -LogOnly -Level Error
-                return "License Key format is invalid"
+    $tpcfVersionMatch = [regex]::Match($TPCFFilename, '(\d+)\.(\d+)')
+    if ($tpcfVersionMatch.Success) {
+        $tpcfMajor = [int]$tpcfVersionMatch.Groups[1].Value
+        $tpcfMinor = [int]$tpcfVersionMatch.Groups[2].Value
+        if ($tpcfMajor -gt 10 -or ($tpcfMajor -eq 10 -and $tpcfMinor -ge 2)) {
+            My-Logger "Validating if TP License Key is of valid format" -LogOnly
+            Run-Test -TestName "License Key is of valid format" -TestCode {
+                # Check if license key is specified (not null/empty)
+                if ([string]::IsNullOrWhiteSpace($TPCFLicenseKey)) {
+                    My-Logger "License Key field is empty" -LogOnly -Level Error
+                    return "License Key field is empty"
+                }
+                # Validate license key format (xxxxx-xxxxx-xxxxx-xxxxx-xxxxx)
+                $licensePattern = "^[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$"
+                if ($TPCFLicenseKey -match $licensePattern) {
+                    My-Logger "License key format is valid" -LogOnly
+                    return $true
+                } else {
+                    My-Logger "License Key format is invalid. Expected format: xxxxx-xxxxx-xxxxx-xxxxx-xxxxx" -LogOnly -Level Error
+                    return "License Key format is invalid"
+                }
             }
         }
     }
@@ -3813,18 +4083,18 @@ if($deployOpsManager -eq 1) {
     $result = Generate-SSHKey -PublicKeyContent ([ref]$OpsManagerPublicSshKey)
 
     # Deploy Ops Manager
-    $opsMgrOvfCOnfig = Get-OvfConfiguration $OpsManOVA
-    $opsMgrOvfCOnfig.Common.ip0.Value = $OpsManagerIPAddress
-    $opsMgrOvfCOnfig.Common.netmask0.Value = $OpsManagerNetmask
-    $opsMgrOvfCOnfig.Common.gateway.Value = $OpsManagerGateway
-    $opsMgrOvfCOnfig.Common.DNS.Value = $VMDNS
-    $opsMgrOvfCOnfig.Common.ntp_servers.Value = $VMNTP
-    $opsMgrOvfCOnfig.Common.public_ssh_key.Value = $OpsManagerPublicSshKey
-    $opsMgrOvfCOnfig.Common.custom_hostname.Value = $OpsManagerFQDN
-    $opsMgrOvfCOnfig.NetworkMapping.Network_1.Value = $VMNetwork
+    $opsMgrOvfConfig = Get-OvfConfiguration $OpsManOVA
+    $opsMgrOvfConfig.Common.ip0.Value = $OpsManagerIPAddress
+    $opsMgrOvfConfig.Common.netmask0.Value = $OpsManagerNetmask
+    $opsMgrOvfConfig.Common.gateway.Value = $OpsManagerGateway
+    $opsMgrOvfConfig.Common.DNS.Value = $VMDNS
+    $opsMgrOvfConfig.Common.ntp_servers.Value = $VMNTP
+    $opsMgrOvfConfig.Common.public_ssh_key.Value = $OpsManagerPublicSshKey
+    $opsMgrOvfConfig.Common.custom_hostname.Value = $OpsManagerFQDN
+    $opsMgrOvfConfig.NetworkMapping.Network_1.Value = $VMNetwork
     
     Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false -Scope Session | Out-Null
-    $opsmgr_vm = Import-VApp -Source $OpsManOVA -OvfConfiguration $opsMgrOvfCOnfig -Name $OpsManagerDisplayName -Location $resourcepool -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
+    $opsmgr_vm = Import-VApp -Source $OpsManOVA -OvfConfiguration $opsMgrOvfConfig -Name $OpsManagerDisplayName -Location $resourcepool -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
 
     My-Logger "Foundation Core (Tanzu Operations Manager) installed"
     My-Logger "Powering on Foundation Core (Tanzu Operations Manager)..."
@@ -3926,7 +4196,7 @@ iaas-configurations:
   vcenter_password: $BOSHvCenterPassword
   datacenter: $BOSHvCenterDatacenter
   disk_type: thin
-  ephemeral_datastores_string: $BOSHvCenterEpemeralDatastores
+  ephemeral_datastores_string: $BOSHvCenterEphemeralDatastores
   persistent_datastores_string: $BOSHvCenterPersistentDatastores
   nsx_networking_enabled: false
   avi_load_balancer_enabled: false
@@ -3977,7 +4247,7 @@ resource-configuration:
 
 if($setupMinio -eq 1) {
 
-    # Create MinIO manifest files with env specific paramters
+    # Create MinIO manifest files with env specific parameters
     Create-MinioManifestFiles
 
     # Retrieve BOSH env parameters from Ops Man and set them
@@ -3996,7 +4266,7 @@ if($setupMinio -eq 1) {
 
     Install-Minio
 
-    # Retieve MinIO BOSH Release VM IP so can update DNS
+    # Retrieve MinIO BOSH Release VM IP so can update DNS
     $boshArgs = @('-d', 'minio', 'vms', '--json')
     My-Logger "${BOSHCLI} $boshArgs" -LogOnly
     $MinioIP = (& $BOSHCLI @boshArgs | ConvertFrom-Json).Tables[0].Rows `
@@ -4013,7 +4283,7 @@ if($setupMinio -eq 1) {
        -secretkey $MinioPassword `
        -bucket $MinioBucket
 
-    #Upload embeddding model to MinIO bucket
+    #Upload embedding model to MinIO bucket
     Upload-Model `
       -alias 'minio' `
       -bucket $MinioBucket `
@@ -4231,7 +4501,7 @@ if($setupGenAI -eq 1) {
 
     # Get product name and version
     $GenAIProductName = & "$OMCLI" product-metadata --product-path $GenAITile --product-name
-    $GenAIVersion = & "$OMCLI" product-metadata --product-path $genAITile --product-version
+    $GenAIVersion = & "$OMCLI" product-metadata --product-path $GenAITile --product-version
 
     # Upload tile
     My-Logger "Uploading AI Services (Tanzu GenAI) tile to Foundation Core (Tanzu Operations Manager)..."
@@ -4477,12 +4747,609 @@ network-properties:
 
 }
 
+if($setupMySQL -eq 1) {
+
+    # Verify if MySQL is already installed
+    $productToCheck = "pivotal-mysql"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] MySQL tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $MySQLProductName = & "$OMCLI" product-metadata --product-path $MySQLTile --product-name
+    $MySQLVersion = & "$OMCLI" product-metadata --product-path $MySQLTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading MySQL tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$MySQLTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding MySQL tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$MySQLProductName", "--product-version", "$MySQLVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    $scpKey = (Get-Content -Path $scpKeyPath) | ForEach-Object { "        $_" } | Out-String
+
+    # Create MySQL config yaml
+    $MySQLPayload = @"
+---
+product-name: pivotal-mysql
+product-properties:
+  .properties.backups_selector:
+    selected_option: scp
+    value: SCP Backups
+  .properties.backups_selector.scp.cron_schedule:
+    value: 0 */8 * * *
+  .properties.backups_selector.scp.destination:
+    value: $scpDestination
+  .properties.backups_selector.scp.key:
+    value:
+      secret: |- 
+$scpKey
+  .properties.backups_selector.scp.port:
+    value: $scpPort
+  .properties.backups_selector.scp.server:
+    value: $scpServer
+  .properties.backups_selector.scp.user:
+    value: $scpUser
+  .properties.plan1_selector.single_node.az_multi_select:
+    value:
+    - $BOSHAZAssignment
+  .properties.plan2_selector.single_node.az_multi_select:
+    value:
+    - $BOSHAZAssignment
+  .properties.plan3_selector.single_node.az_multi_select:
+    value:
+    - $BOSHAZAssignment
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+
+    $MySQLyaml = "mysql-config.yaml"
+    $MySQLPayload > $MySQLyaml
+
+    My-Logger "Applying MySQL configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$MySQLyaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupAPIGW -eq 1) {
+
+    # Verify if API Gateway (Spring Cloud Gateway Service) is already installed
+    $productToCheck = "p_spring-cloud-gateway-service"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] API Gateway tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $APIGWProductName = & "$OMCLI" product-metadata --product-path $APIGWTile --product-name
+    $APIGWVersion = & "$OMCLI" product-metadata --product-path $APIGWTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading API Gateway tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$APIGWTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding API Gateway tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$APIGWProductName", "--product-version", "$APIGWVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupServicePublisher -eq 1) {
+
+    # Verify if Service Publisher is already installed
+    $productToCheck = "service-publisher"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Service Publisher tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $ServicePublisherProductName = & "$OMCLI" product-metadata --product-path $ServicePublisherTile --product-name
+    $ServicePublisherVersion = & "$OMCLI" product-metadata --product-path $ServicePublisherTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Service Publisher tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$ServicePublisherTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Service Publisher tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$ServicePublisherProductName", "--product-version", "$ServicePublisherVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Create Service Publisher config yaml
+    $ServicePublisherPayload = @"
+---
+product-name: service-publisher
+product-properties:
+  .properties.database_source.service_broker.name:
+    value: p.mysql
+  .properties.database_source.service_broker.plan_name:
+    value: db-small
+  .properties.default_provider_name:
+    value: $svcPubProviderName
+"@
+
+    $ServicePublisheryaml = "servicepublisher-config.yaml"
+    $ServicePublisherPayload > $ServicePublisheryaml
+
+    My-Logger "Applying Service Publisher configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$ServicePublisheryaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupAppServices -eq 1) {
+
+    # Verify if Application Services (Spring Cloud Services) is already installed
+    $productToCheck = "p_spring-cloud-services"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Application Services tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $AppServicesProductName = & "$OMCLI" product-metadata --product-path $AppServicesTile --product-name
+    $AppServicesVersion = & "$OMCLI" product-metadata --product-path $AppServicesTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Application Services tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$AppServicesTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Application Services tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$AppServicesProductName", "--product-version", "$AppServicesVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupCredHub -eq 1) {
+
+    # Verify if CredHub is already installed
+    $productToCheck = "credhub-service-broker"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] CredHub tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $CredHubProductName = & "$OMCLI" product-metadata --product-path $CredHubTile --product-name
+    $CredHubVersion = & "$OMCLI" product-metadata --product-path $CredHubTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading CredHub tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$CredHubTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding CredHub tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$CredHubProductName", "--product-version", "$CredHubVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupDataFlow -eq 1) {
+
+    # Verify if Data Flow is already installed
+    $productToCheck = "dataflow"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Data Flow tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $DataFlowProductName = & "$OMCLI" product-metadata --product-path $DataFlowTile --product-name
+    $DataFlowVersion = & "$OMCLI" product-metadata --product-path $DataFlowTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Data Flow tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$DataFlowTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Data Flow tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$DataFlowProductName", "--product-version", "$DataFlowVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupSSO -eq 1) {
+
+    # Verify if Single Sign-on is already installed
+    $productToCheck = "Pivotal_Single_Sign-On_Service"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Single Sign-on tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $SSOProductName = & "$OMCLI" product-metadata --product-path $SSOTile --product-name
+    $SSOVersion = & "$OMCLI" product-metadata --product-path $SSOTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Single Sign-on tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$SSOTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Single Sign-on tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$SSOProductName", "--product-version", "$SSOVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupGemFire -eq 1) {
+
+    # Verify if GemFire is already installed
+    $productToCheck = "p-cloudcache"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] GemFire tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $GemFireProductName = & "$OMCLI" product-metadata --product-path $GemFireTile --product-name
+    $GemFireVersion = & "$OMCLI" product-metadata --product-path $GemFireTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading GemFire tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$GemFireTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding GemFire tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$GemFireProductName", "--product-version", "$GemFireVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Create GemFire config yaml
+    $GemFirePayload = @"
+---
+product-name: p-cloudcache
+product-properties:
+  .properties.confirm_tls_setup:
+    value: X
+  .properties.dev_plan_enable_service_plan.enable.service_instance_azs:
+    value:
+    - $BOSHAZAssignment
+  .properties.errand_plan:
+    selected_option: plan1
+    value: plan1
+  .properties.plan1_enable_service_plan.enable.service_instance_azs:
+    value:
+    - $BOSHAZAssignment
+  .properties.plan2_enable_service_plan:
+    selected_option: disable
+    value: disable
+  .properties.plan3_enable_service_plan:
+    selected_option: disable
+    value: disable
+  .properties.plan4_enable_service_plan:
+    selected_option: disable
+    value: disable
+  .properties.plan5_enable_service_plan:
+    selected_option: disable
+    value: disable
+  .properties.small_footprint_enable_service_plan.enable.service_instance_azs:
+    value:
+    - $BOSHAZAssignment
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+
+    $GemFireyaml = "gemfire-config.yaml"
+    $GemFirePayload > $GemFireyaml
+
+    My-Logger "Applying GemFire configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$GemFireyaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupRabbitMQ -eq 1) {
+
+    # Verify if RabbitMQ is already installed
+    $productToCheck = "p-rabbitmq"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] RabbitMQ tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $RabbitMQProductName = & "$OMCLI" product-metadata --product-path $RabbitMQTile --product-name
+    $RabbitMQVersion = & "$OMCLI" product-metadata --product-path $RabbitMQTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading RabbitMQ tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$RabbitMQTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding RabbitMQ tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$RabbitMQProductName", "--product-version", "$RabbitMQVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Create RabbitMQ config yaml
+    $RabbitMQPayload = @"
+---
+product-name: p-rabbitmq
+product-properties:
+  .properties.on_demand_broker_plan_collection:
+    value:
+    - audit_logger_consume_delay: 2
+      audit_logger_enabled: false
+      audit_logger_format: json
+      audit_logger_reconnect_time: 5
+      az_placement:
+      - $BOSHAZAssignment
+      cf_service_access: enable
+      check_queue_sync: false
+      configured_plan_id: null
+      description: This plan provides a RabbitMQ instance
+      disk_limit_acknowledgement:
+      - acknowledge
+      features: RabbitMQ
+      instance_quota: 10
+      name: on-demand-plan
+      override_advanced_config: null
+      override_config: null
+      paid: false
+      plan_vm_extensions: null
+      rabbitmq_cluster_partition_handling_strategy: pause_minority
+      rabbitmq_number_of_nodes: 3
+      rabbitmq_persistent_disk_type: null
+      rabbitmq_vm_type: null
+      service_gateway_enabled: false
+      smoke_tests_enabled: true
+      sni_enabled: false
+      standby_replication_disk_limit: null
+      standby_replication_mode: null
+      standby_replication_retention_time: null
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+
+    $RabbitMQyaml = "rabbitmq-config.yaml"
+    $RabbitMQPayload > $RabbitMQyaml
+
+    My-Logger "Applying RabbitMQ configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$RabbitMQyaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
+if($setupValkey -eq 1) {
+
+    # Verify if Valkey is already installed
+    $productToCheck = "p-redis"
+    $deployedResult = Check-productDeployed -productName $productToCheck
+    if ($deployedResult){
+        My-Logger "[Error] Valkey tile is already installed" -level Error -color Red
+        exit
+    }
+
+    # Get product name and version
+    $ValkeyProductName = & "$OMCLI" product-metadata --product-path $ValkeyTile --product-name
+    $ValkeyVersion = & "$OMCLI" product-metadata --product-path $ValkeyTile --product-version
+
+    # Upload tile
+    My-Logger "Uploading Valkey tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "-r", "3600", "upload-product", "--product", "$ValkeyTile")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Stage tile
+    My-Logger "Adding Valkey tile to Foundation Core (Tanzu Operations Manager)..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "stage-product", "--product-name", "$ValkeyProductName", "--product-version", "$ValkeyVersion")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+
+    # Create Valkey config yaml
+    $ValkeyPayload = @"
+---
+product-name: p-redis
+product-properties:
+  .properties.plan_collection:
+    value:
+    - name: on-demand-cache
+      description: This plan provides a test on-demand Valkey instance, tailored for caching use-cases with persistence to disk enabled
+      instance_limit: 20
+      cf_service_access: enable
+      az_multi_select:
+      - $BOSHAZAssignment
+      timeout: 3600
+      tcp_keepalive: 60
+      maxclients: 1000
+      lua_scripting: false
+      service_gateway: false
+      paid_plan: false
+      ha_enabled: false
+network-properties:
+  network:
+    name: $BOSHNetworkAssignment
+  other_availability_zones:
+  - name: $BOSHAZAssignment
+  service_network:
+    name: $BOSHNetworkAssignment
+  singleton_availability_zone:
+    name: $BOSHAZAssignment
+"@
+
+    $Valkeyyaml = "valkey-config.yaml"
+    $ValkeyPayload > $Valkeyyaml
+
+    My-Logger "Applying Valkey configuration..."
+    $configArgs = @("-k", "-t", "$OpsManagerFQDN", "-u", "$OpsManagerAdminUsername", "-p", "$OpsManagerAdminPassword", "configure-product", "--config", "$Valkeyyaml")
+    My-Logger "${OMCLI} $configArgs" -LogOnly
+    & $OMCLI $configArgs 2>&1 >> $verboseLogFile
+    if ($LASTEXITCODE -ne 0) {
+        My-Logger "[Error] Previous step failed. Please see the following log for details: $verboseLogFile" -level Error -color Red
+        exit
+    }
+}
+
 # Install all configured tiles
 $tiles = [ordered]@{
   'Elastic Application Runtime'   = $setuptpcf
   'Postgres'                      = $setupPostgres
   'AI Services'                   = $setupgenai
   'Hub'                           = $setupHub
+  'MySQL'                         = $setupMySQL
+  'API Gateway'                   = $setupAPIGW
+  'Service Publisher'             = $setupServicePublisher
+  'Application Services'          = $setupAppServices
+  'CredHub'                       = $setupCredHub
+  'Data Flow'                     = $setupDataFlow
+  'Single Sign-on'                = $setupSSO
+  'GemFire'                       = $setupGemFire
+  'RabbitMQ'                      = $setupRabbitMQ
+  'Valkey'                        = $setupValkey
 }
 
 $toInstall = $tiles.GetEnumerator() |

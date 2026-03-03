@@ -56,7 +56,7 @@ For a much more comprehensive automated install of Tanzu Platform, which uses [C
 
 **Workstation/jump-host**
 - [Powershell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell) or later installed
-- [VMware PowerCLI](https://techdocs.broadcom.com/us/en/vmware-cis/vcf/power-cli/latest/powercli/installing-vmware-vsphere-powercli/install-powercli.html) installed eg `Install-Module VMware.PowerCLI`
+- [VMware / VCF PowerCLI](https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/administration-sdks-cli-and-tools/introduction-to-vmware-vsphere-powercli/installing-vmware-vsphere-powercli/install-powercli.html) installed eg `Install-Module VCF.PowerCLI`
 - [OM CLI](https://github.com/pivotal-cf/om) installed
 - Following files downloaded...
   - [Foundation Core (Tanzu Operations Manager)](https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform)
@@ -73,10 +73,10 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, Postgres tile, GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.2.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.4-build.2.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.4.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.5-build.4.pivotal"
 $PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.2.pivotal"
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.3.pivotal"
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.4.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
 
@@ -116,7 +116,7 @@ Update Tanzu Hub fields
 ```bash
 ### Install Tanzu Hub (global control plane and observability)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.4.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.5.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -403,16 +403,27 @@ Congratulations, you have come to the end of this quick start guide. We have bar
 - If you wish to just install up to a certain component, or skip a step, you can by changing the Installer Overrides flags in the Advanced Parameters section in the script
 ```bash
 # Installer Overrides
-$confirmDeployment = 1
-$preCheck = 1
-$deployOpsManager = 1
-$setupOpsManager = 1
-$setupBOSHDirector = 1
-$setupTPCF = 1
-$setupPostgres = $InstallTanzuAI
-$setupGenAI = $InstallTanzuAI
-$setupHub = $InstallHub
-$ignoreWarnings = $false
+$confirmDeployment     = 1
+$preCheck              = 1
+$deployOpsManager      = 1
+$setupOpsManager       = 1
+$setupBOSHDirector     = 1
+$setupTPCF             = 1
+$setupMinio            = $InstallMinIO
+$setupPostgres         = $InstallTanzuAI
+$setupGenAI            = $InstallTanzuAI
+$setupHub              = $InstallHub
+$setupMySQL            = $InstallMySQL
+$setupAPIGW            = $InstallAPIGW
+$setupServicePublisher = $InstallServicePublisher
+$setupAppServices      = $InstallAppServices
+$setupCredHub          = $InstallCredHub
+$setupDataFlow         = $InstallDataFlow
+$setupSSO              = $InstallSSO
+$setupGemFire          = $InstallGemFire
+$setupRabbitMQ         = $InstallRabbitMQ
+$setupValkey           = $InstallValkey 
+$ignoreWarnings        = $false
 ```
 
 - If the install of a component fails due to a permissions/privileges warning (verify in the installer log), you can override the warning by setting the ignoreWarnings flag to $true in the Advanced Parameters section of the script
@@ -484,14 +495,14 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.2.ova
-- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.4-build.2.pivotal
+- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.4.ova
+- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.5-build.4.pivotal
 - **Postgres:** postgres-10.2.2.pivotal
-- **AI Services:** genai-10.3.3.pivotal
-- **Tanzu Hub:** tanzu-hub-10.3.4.pivotal
-- **OM CLI:** 7.16
-- **Powershell:** 7.5.3
-- **PowerCLI:** 13.3.0
+- **AI Services:** genai-10.3.4.pivotal
+- **Tanzu Hub:** tanzu-hub-10.3.5.pivotal
+- **OM CLI:** 7.20.1
+- **Powershell:** 7.5.4
+- **VCF.PowerCLI:** 9.0.0
 - **CF CLI:** 10.3
 - **cf-mcp-client:** 2.7
 - **vSphere:** 8U3 & 9.0
