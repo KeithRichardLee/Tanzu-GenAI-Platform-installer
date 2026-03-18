@@ -73,9 +73,9 @@ Update each instance of "FILL-ME-IN" in the script. See below for a worked examp
 Update the path to the VMware Tanzu Operations Manager (OpsMan) OVA, Tanzu Platform for Cloud Foundry (TPCF) tile, Postgres tile, GenAI tile, and OM CLI
 ```bash
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.4.ova"
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.5-build.4.pivotal"
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.2.pivotal"
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.5.ova"
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.6-build.2.pivotal"
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.3.pivotal"
 $GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.4.pivotal"
 $OMCLI        = "/usr/local/bin/om"
 ```
@@ -116,7 +116,7 @@ Update Tanzu Hub fields
 ```bash
 ### Install Tanzu Hub (global control plane and observability)?
 $InstallHub = $true
-$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.5.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile    = "/Users/Tanzu/Downloads/tanzu-hub-10.3.6.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN    = "hub.tanzu.lab"
 ```
 
@@ -495,11 +495,11 @@ Below are the pre-checks the script performs...
 
 ## Validation
 The script was validated against the following versions...
-- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.4.ova
-- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.5-build.4.pivotal
-- **Postgres:** postgres-10.2.2.pivotal
+- **Foundation Core (Tanzu Operations Manager):** ops-manager-vsphere-3.2.5.ova
+- **Small Footprint Elastic Application Runtime (Tanzu Platform for Cloud Foundry):** srt-10.3.6-build.2.pivotal
+- **Postgres:** postgres-10.2.3.pivotal
 - **AI Services:** genai-10.3.4.pivotal
-- **Tanzu Hub:** tanzu-hub-10.3.5.pivotal
+- **Tanzu Hub:** tanzu-hub-10.3.6.pivotal
 - **OM CLI:** 7.20.1
 - **Powershell:** 7.5.4
 - **VCF.PowerCLI:** 9.0.0
