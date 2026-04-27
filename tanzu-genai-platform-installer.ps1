@@ -28,10 +28,10 @@ param(
 ### Required inputs
 
 ### Full Path to Tanzu Operations Manager OVA, TPCF tile, Postgres tile, GenAI tile, and OM CLI
-$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.2.5.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
-$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.3.6-build.2.pivotal"            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
-$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.2.3.pivotal"               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform 
-$GenAITile    = "/Users/Tanzu/Downloads/genai-10.3.4.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
+$OpsManOVA    = "/Users/Tanzu/Downloads/ops-manager-vsphere-3.3.0.ova"         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Foundation%20Core%20for%20VMware%20Tanzu%20Platform 
+$TPCFTile     = "/Users/Tanzu/Downloads/srt-10.4.0-build.18.pivotal"           #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Elastic%20Application%20Runtime%20for%20VMware%20Tanzu%20Platform
+$PostgresTile = "/Users/Tanzu/Downloads/postgres-10.4.0.pivotal"               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Postgres%20on%20Tanzu%20Platform 
+$GenAITile    = "/Users/Tanzu/Downloads/genai-10.4.0.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=AI%20Services%20for%20VMware%20Tanzu%20Platform 
 $OMCLI        = "/usr/local/bin/om"                                            #Download from https://github.com/pivotal-cf/om
 
 ### Infra config
@@ -61,7 +61,7 @@ $TPCFLicenseKey = "FILL-ME-IN"            #License key required for 10.2 and lat
 
 ### Install Tanzu Hub (global control plane & observability)?
 $InstallHub = $false
-$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.3.6.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
+$HubTile = "/Users/Tanzu/Downloads/tanzu-hub-10.4.0.pivotal"        #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Tanzu%20Hub
 $HubFQDN = "FILL-ME-IN"
 
 ### end of required inputs
@@ -168,7 +168,7 @@ $HubKeyPath = "/Users/Tanzu/certs/Hub/privkey.pem"
 
 # Install MySQL?
 $InstallMySQL   = $false
-$MySQLTile      = "/Users/Tanzu/Downloads/pivotal-mysql-10.1.1.pivotal"                                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20MySQL%20on%20Tanzu%20Platform
+$MySQLTile      = "/Users/Tanzu/Downloads/pivotal-mysql-10.4.0.pivotal"                                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20MySQL%20on%20Tanzu%20Platform
 $scpServer      = "FILL-ME-IN"                                                                                     # hostname or IP
 $scpPort        = "FILL-ME-IN"                                                                                     # eg "22"
 $scpUser        = "FILL-ME-IN"                                                                                     # eg "mysql-backup-user"
@@ -177,40 +177,40 @@ $scpDestination = "FILL-ME-IN"                                                  
 
 # Install API Gateway (Spring Cloud Gateway)?
 $InstallAPIGW   = $false
-$APIGWTile      = "/Users/Tanzu/Downloads/p_spring-cloud-gateway-service-2.4.2.pivotal"                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=API%20Gateway%20for%20VMware%20Tanzu%20Platform
+$APIGWTile      = "/Users/Tanzu/Downloads/p_spring-cloud-gateway-service-2.4.3.pivotal"                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=API%20Gateway%20for%20VMware%20Tanzu%20Platform
 
 # Install Service Publisher?
 $InstallServicePublisher = $false
-$ServicePublisherTile    = "/Users/Tanzu/Downloads/service-publisher-10.3.5.pivotal"                               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Service%20Publisher%20for%20VMware%20Tanzu%20Platform 
+$ServicePublisherTile    = "/Users/Tanzu/Downloads/service-publisher-10.4.0.pivotal"                               #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Service%20Publisher%20for%20VMware%20Tanzu%20Platform 
 $svcPubProviderName      = "FILL-ME-IN"                                                                            #Default provider name for published service eg "Tanzu Labs"
 
 # Install Application Services (Spring Cloud Services)?
 $InstallAppServices     = $false
-$AppServicesTile        = "/Users/Tanzu/Downloads/p_spring-cloud-services-3.3.15.pivotal"                          #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Application%20Services%20for%20VMware%20Tanzu%20Platform 
+$AppServicesTile        = "/Users/Tanzu/Downloads/p_spring-cloud-services-3.4.0.pivotal"                           #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Application%20Services%20for%20VMware%20Tanzu%20Platform 
 
 # Install CredHub?
 $InstallCredHub         = $false
-$CredHubTile            = "/Users/Tanzu/Downloads/credhub-service-broker-1.6.8.pivotal"                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=CredHub%20Secrets%20Management%20for%20VMware%20Tanzu%20Platform 
+$CredHubTile            = "/Users/Tanzu/Downloads/credhub-service-broker-1.6.9.pivotal"                            #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=CredHub%20Secrets%20Management%20for%20VMware%20Tanzu%20Platform 
 
 # Install Data Flow (Spring Cloud Data Flow)?
 $InstallDataFlow        = $false
-$DataFlowTile           = "/Users/Tanzu/Downloads/dataflow-2.0.4.pivotal"                                          #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Data%20Flow%20on%20Tanzu%20Platform 
+$DataFlowTile           = "/Users/Tanzu/Downloads/dataflow-2.1.0.pivotal"                                          #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Data%20Flow%20on%20Tanzu%20Platform 
 
 # Install Single Sign-On?
 $InstallSSO             = $false
-$SSOTile                = "/Users/Tanzu/Downloads/Pivotal_Single_Sign-On_Service_1.16.18.pivotal"                  #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Single%20Sign-On%20for%20VMware%20Tanzu%20Platform 
+$SSOTile                = "/Users/Tanzu/Downloads/Pivotal_Single_Sign-On_Service_1.17.0.pivotal"                   #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=Single%20Sign-On%20for%20VMware%20Tanzu%20Platform 
 
 # Install GemFire (CloudCache)?
 $InstallGemFire         = $false
-$GemFireTile            = "/Users/Tanzu/Downloads/p-cloudcache-2.2.2.pivotal"                                      #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20GemFire%20on%20Tanzu%20Platform
+$GemFireTile            = "/Users/Tanzu/Downloads/p-cloudcache-10.4.0.pivotal"                                     #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20GemFire%20on%20Tanzu%20Platform
 
 # Install RabbitMQ?
 $InstallRabbitMQ        = $false
-$RabbitMQTile           = "/Users/Tanzu/Downloads/p-rabbitmq-10.1.2.pivotal"                                       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20RabbitMQ%20on%20Tanzu%20Platform 
+$RabbitMQTile           = "/Users/Tanzu/Downloads/p-rabbitmq-10.4.0.pivotal"                                       #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20RabbitMQ%20on%20Tanzu%20Platform 
 
 # Install Valkey (Redis)?
 $InstallValkey          = $false
-$ValkeyTile             = "/Users/Tanzu/Downloads/p-valkey-10.2.2.pivotal"                                         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Valkey%20on%20Tanzu%20Platform 
+$ValkeyTile             = "/Users/Tanzu/Downloads/p-valkey-10.4.0.pivotal"                                         #Download from https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20for%20Valkey%20on%20Tanzu%20Platform 
 
 
 ##############################
@@ -4464,6 +4464,9 @@ product-properties:
       - $BOSHAZAssignment
       cf_service_access: enable
       name: on-demand-postgres-db
+  .properties.global_az_multi_select:
+    value:
+    - $BOSHAZAssignment
 network-properties:
   network:
     name: $BOSHNetworkAssignment
@@ -4633,6 +4636,15 @@ product-properties:
     value: postgres
   .properties.database_source.service_broker.plan_name:
     value: on-demand-postgres-db
+  .properties.mcp_gateway_database:
+    selected_option: service_broker
+    value: service_broker
+  .properties.mcp_gateway_database.service_broker.offering:
+    value: postgres
+  .properties.mcp_gateway_database.service_broker.plan_name:
+    value: on-demand-postgres-db
+  .properties.mcp_gateway_database.service_broker.sslmode:
+    value: prefer
 network-properties:
   network:
     name: $BOSHNetworkAssignment
@@ -4642,6 +4654,9 @@ network-properties:
     name: $BOSHNetworkAssignment
   singleton_availability_zone:
     name: $BOSHAZAssignment
+errand-config:
+  install-agent-buildpack:
+    post-deploy-state: true
 "@
 
     $GenAIyaml = "genai-config.yaml"
@@ -4812,6 +4827,9 @@ $scpKey
     value:
     - $BOSHAZAssignment
   .properties.plan3_selector.single_node.az_multi_select:
+    value:
+    - $BOSHAZAssignment
+  .properties.global_az_multi_select:
     value:
     - $BOSHAZAssignment
 network-properties:
@@ -5138,6 +5156,9 @@ product-properties:
   .properties.small_footprint_enable_service_plan.enable.service_instance_azs:
     value:
     - $BOSHAZAssignment
+  .properties.dynamic_plans_az_multi_select:
+    value:
+    - $BOSHAZAssignment
 network-properties:
   network:
     name: $BOSHNetworkAssignment
@@ -5232,6 +5253,9 @@ product-properties:
       standby_replication_disk_limit: null
       standby_replication_mode: null
       standby_replication_retention_time: null
+  .properties.global_az_multi_select:
+    value:
+    - az1
 network-properties:
   network:
     name: $BOSHNetworkAssignment
@@ -5241,6 +5265,9 @@ network-properties:
     name: $BOSHNetworkAssignment
   singleton_availability_zone:
     name: $BOSHAZAssignment
+errand-config:
+  on-demand-broker-smoke-tests:
+    post-deploy-state: false
 "@
 
     $RabbitMQyaml = "rabbitmq-config.yaml"
@@ -5310,6 +5337,9 @@ product-properties:
       service_gateway: false
       paid_plan: false
       ha_enabled: false
+  .properties.global_az_multi_select:
+    value:
+    - az1
 network-properties:
   network:
     name: $BOSHNetworkAssignment
